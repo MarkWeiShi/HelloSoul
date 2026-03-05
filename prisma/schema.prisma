@@ -1,0 +1,292 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String
+  password  String
+  locale    String   @default("en")
+  timezone  String   @default("UTC")
+  birthday  DateTime?
+  city      String?
+  country   String?
+  nativeLanguage   String?
+  learningGoals    String?  // JSON array
+  createdAt DateTime @default(now())
+
+  relationships    Relationship[]
+  journalEntries   JournalEntry[]
+  feedInteractions FeedInteraction[]
+  deepProfileFields DeepProfileField[]
+  proactiveMessages ProactiveMessage[]
+  reflectionQuestions ReflectionQuestion[]
+  growthReports     GrowthReport[]
+  virtualGifts      VirtualGift[]
+}
+
+model Relationship {
+  id            String   @id @default(cuid())
+  userId        String
+  characterId   String   // 'akari' | 'mina' | 'sophie' | 'carlos'
+  nickname      String?  // Nickname the character gave the user
+  intimacyScore Int      @default(0)  // 0-100+
+  intimacyLevel Int      @default(0)  // 0-4 mapped levels
+  totalMessages Int      @default(0)
+  totalDays     Int      @default(0)
+  startedAt     DateTime @default(now())
+  lastActiveAt  DateTime @default(now())
+
+  // Relationship preferences (from Crushon insight)
+  contactFreq    String @default("normal")  // 'low' | 'normal' | 'high'
+  teachingMode   String @default("organic") // 'organic' | 'active' | 'none'
+  emotionalDepth String @default("medium")  // 'light' | 'medium' | 'deep'
+
+  // Proactive presence settings (Module H)
+  proactiveFrequency String   @default("normal") // 'off' | 'low' | 'normal' | 'high'
+  silentHoursStart   Int?     // Hour (0-23) when user doesn't want notifications
+  silentHoursEnd     Int?     // Hour (0-23) when silent hours end
+  lastProactiveAt    DateTime?
+
+  user           User             @relation(fields: [userId], references: [id])
+  memories       Memory[]
+  milestones     Milestone[]
+  innerVoiceLogs InnerVoiceLog[]
+  chatMessages   ChatMessage[]
+  emotionalTriggers EmotionalTrigger[]
+
+  @@unique([userId, characterId])
+}
+
+model Memory {
+  id             String    @id @default(cuid())
+  relationshipId String
+  type           String    // identity|preference|milestone|vulnerability|shared|language|daily
+  content        String
+  priority       String    // P0|P1|P2
+  emotionScore   Float     @default(0)  // 0-1
+  isVulnerable   Boolean   @default(false) // vulnerability special flag
+  tags           String    @default("[]")  // JSON array
+  confidence     Float     @default(1.0) // 0-1, extraction confidence (Module I)
+  extractionNote String?   // Which message this was extracted from
+  deepProfileField String? // If this maps to a deep profile field path
+  recallCount    Int       @default(0)
+  lastRecalledAt DateTime?
+  expiresAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  relationship Relationship @relation(fields: [relationshipId], references: [id])
+}
+
+model Milestone {
+  id             String   @id @default(cuid())
+  relationshipId String
+  type           String   // first_chat|first_nickname|first_voice|first_japanese|day_7|day_30|etc
+  title          String
+  description    String
+  intimacyAtTime Int
+  createdAt      DateTime @default(now())
+
+  relationship Relationship @relation(fields: [relationshipId], references: [id])
+}
+
+model ChatMessage {
+  id             String   @id @default(cuid())
+  relationshipId String
+  role           String   // 'ai' | 'user'
+  type           String   @default("text") // text|voice|inner_voice|lifestyle_post|language_tip|memory_recall|proactive
+  content        String
+  metadata       String   @default("{}") // JSON: audioUrl, transcription, innerVoice, etc.
+  emotionState   String?  // EMO_01 through EMO_14 (Module F)
+  gazeDirection  String?  // user|away|down (Module F)
+  sceneId        String?  // scene background ID (Module F)
+  createdAt      DateTime @default(now())
+
+  relationship Relationship @relation(fields: [relationshipId], references: [id])
+}
+
+model InnerVoiceLog {
+  id               String   @id @default(cuid())
+  relationshipId   String
+  triggerMessageId String
+  innerVoiceText   String
+  language         String
+  translation      String
+  audioUrl         String?
+  userRevealed     Boolean  @default(false)
+  createdAt        DateTime @default(now())
+
+  relationship Relationship @relation(fields: [relationshipId], references: [id])
+}
+
+model JournalEntry {
+  id          String   @id @default(cuid())
+  userId      String
+  characterId String
+  entryType   String   // first_meeting|milestone|language_win|emotional|lifestyle
+  title       String
+  content     String   // JSON with full entry data
+  imageUrl    String?
+  stickerIds  String   @default("[]")
+  isShared    Boolean  @default(false)
+  shareImageUrl String?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model LifestyleFeedPost {
+  id               String    @id @default(cuid())
+  characterId      String
+  type             String    // life_moment|cultural_question|language_challenge|milestone
+  content          String    // JSON
+  imageUrl         String?
+  isPublished      Boolean   @default(false)
+  publishedAt      DateTime?
+  interactionCount Int       @default(0)
+  createdAt        DateTime  @default(now())
+
+  interactions FeedInteraction[]
+}
+
+model FeedInteraction {
+  id         String   @id @default(cuid())
+  userId     String
+  postId     String
+  type       String   // like|reply|save
+  replyText  String?
+  aiFollowUp String?  // AI response to user's reply
+  createdAt  DateTime @default(now())
+
+  user User              @relation(fields: [userId], references: [id])
+  post LifestyleFeedPost @relation(fields: [postId], references: [id])
+}
+
+// ===== Module I: Deep User Profile =====
+
+model DeepProfileField {
+  id             String   @id @default(cuid())
+  userId         String
+  characterId    String
+  fieldPath      String   // e.g. "lifeContext.currentWorkStress", "innerWorld.coreInsecurities"
+  value          String   // The extracted insight
+  confidence     Float    @default(1.0) // 0-1
+  emotionalWeight Float   @default(0.0) // 0-1
+  isVulnerable   Boolean  @default(false)
+  extractionNote String?  // Which message this was extracted from
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, characterId])
+}
+
+// ===== Module H: Proactive Messages =====
+
+model ProactiveMessage {
+  id           String    @id @default(cuid())
+  userId       String
+  characterId  String
+  triggerType  String    // thought_of_you|weather_share|followup_care|miss_you|birthday|seasonal
+  content      String
+  emotionState String?   // EMO code for display
+  scheduledAt  DateTime
+  sentAt       DateTime?
+  readAt       DateTime?
+  repliedAt    DateTime?
+  dismissed    Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, scheduledAt])
+}
+
+// ===== Module B: Emotional Trigger =====
+
+model EmotionalTrigger {
+  id             String   @id @default(cuid())
+  relationshipId String
+  priority       String   // P0|P1|P2
+  reason         String
+  urgencyScore   Float    @default(0.0) // 0-1
+  status         String   @default("pending") // pending|accepted|handled|expired
+  coachId        String?
+  coachReply     String?
+  handledAt      DateTime?
+  createdAt      DateTime @default(now())
+
+  relationship Relationship @relation(fields: [relationshipId], references: [id])
+}
+
+// ===== Module I: Reflection Questions =====
+
+model ReflectionQuestion {
+  id           String    @id @default(cuid())
+  userId       String
+  characterId  String
+  question     String
+  openingLine  String
+  sentAt       DateTime?
+  answeredAt   DateTime?
+  userAnswer   String?
+  createdAt    DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, characterId])
+}
+
+// ===== Module I: Growth Reports =====
+
+model GrowthReport {
+  id            String   @id @default(cuid())
+  userId        String
+  characterId   String
+  month         DateTime // First day of the month
+  sections      String   // JSON: array of report sections
+  highlightLine String   // The most important line
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, characterId, month])
+}
+
+// ===== Module H: Virtual Gifts =====
+
+model VirtualGift {
+  id            String    @id @default(cuid())
+  userId        String
+  characterId   String
+  giftType      String    // flower|letter|playlist|photo|charm
+  occasion      String    // birthday|milestone|surprise|seasonal
+  content       String    // JSON: gift content/message
+  sentAt        DateTime  @default(now())
+  openedAt      DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+// ===== Module A: Ambassador Submissions =====
+
+model AmbassadorSubmission {
+  id            String    @id @default(cuid())
+  ambassadorId  String
+  characterId   String
+  mediaUrl      String?
+  rawDescription String
+  ambassadorNote String?
+  tags          String    @default("{}") // JSON: location, timeOfDay, etc.
+  status        String    @default("pending") // pending|approved|rejected|published
+  processedPostId String?
+  createdAt     DateTime  @default(now())
+  reviewedAt    DateTime?
+}
