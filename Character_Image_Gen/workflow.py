@@ -57,6 +57,7 @@ class WorkflowConfig:
     input_image: str
     prompt0: str
     output_dir: str
+    character_name: str = "character"  # 角色名称，用于文件夹和文件命名
     skip_video: bool = False
     from_step: int = 1
     only_step: Optional[int] = None
@@ -575,7 +576,7 @@ def detect_grid_lines(img_array, axis: int, num_lines: int = 4) -> List[int]:
 
 
 def crop_grid_to_images_precise(grid_path: str, output_dir: Path, emotions: List[str], 
-                                 padding: int = 5, logger=None) -> List[str]:
+                                 character_name: str = "", padding: int = 5, logger=None) -> List[str]:
     """
     使用边缘检测精确裁剪5x5宫格图为25张独立图片
     
@@ -583,6 +584,7 @@ def crop_grid_to_images_precise(grid_path: str, output_dir: Path, emotions: List
         grid_path: 宫格图路径
         output_dir: 输出目录
         emotions: 情绪名称列表（25个）
+        character_name: 角色名称，用于文件命名前缀
         padding: 裁剪时向内收缩的像素数，避免包含分隔线
         logger: 日志记录器
     
@@ -646,15 +648,18 @@ def crop_grid_to_images_precise(grid_path: str, output_dir: Path, emotions: List
         # 裁剪
         cell_img = img.crop((left, top, right, bottom))
         
-        # 保存
-        output_path = output_dir / f"{emotion}.png"
+        # 保存 - 使用 角色名_情绪 格式命名
+        if character_name:
+            output_path = output_dir / f"{character_name}_{emotion}.png"
+        else:
+            output_path = output_dir / f"{emotion}.png"
         cell_img.save(output_path, "PNG")
         output_paths.append(str(output_path))
     
     return output_paths
 
 
-def crop_grid_to_images(grid_path: str, output_dir: Path, emotions: List[str]) -> List[str]:
+def crop_grid_to_images(grid_path: str, output_dir: Path, emotions: List[str], character_name: str = "") -> List[str]:
     """将5x5宫格图裁剪为25张独立图片（简单均匀分割，已弃用）"""
     img = Image.open(grid_path)
     width, height = img.size
@@ -675,8 +680,11 @@ def crop_grid_to_images(grid_path: str, output_dir: Path, emotions: List[str]) -
         
         cell_img = img.crop((left, top, right, bottom))
         
-        # 保存裁剪后的图片
-        output_path = output_dir / f"{emotion}.png"
+        # 保存裁剪后的图片 - 使用 角色名_情绪 格式命名
+        if character_name:
+            output_path = output_dir / f"{character_name}_{emotion}.png"
+        else:
+            output_path = output_dir / f"{emotion}.png"
         cell_img.save(output_path, "PNG")
         output_paths.append(str(output_path))
     
@@ -700,13 +708,15 @@ def step1_generate_grids(
     grids_dir = output_dir / "step1_grids"
     grids_dir.mkdir(exist_ok=True)
     
+    name = config.character_name
+    
     # 生成积极情绪宫格
     logger.info("正在生成积极情绪25宫格...")
     positive_data = gemini.generate_image_with_reference(
         PROMPT_1_POSITIVE_GRID,
         config.input_image
     )
-    positive_path = grids_dir / "positive_grid.png"
+    positive_path = grids_dir / f"{name}_positive_grid.png"
     with open(positive_path, 'wb') as f:
         f.write(positive_data)
     logger.info(f"✓ 积极情绪宫格已保存: {positive_path}")
@@ -719,7 +729,7 @@ def step1_generate_grids(
         PROMPT_2_NEGATIVE_GRID,
         config.input_image
     )
-    negative_path = grids_dir / "negative_grid.png"
+    negative_path = grids_dir / f"{name}_negative_grid.png"
     with open(negative_path, 'wb') as f:
         f.write(negative_data)
     logger.info(f"✓ 消极情绪宫格已保存: {negative_path}")
@@ -731,7 +741,8 @@ def step2_crop_grids(
     positive_grid: str,
     negative_grid: str,
     output_dir: Path,
-    logger: logging.Logger
+    logger: logging.Logger,
+    character_name: str = ""
 ) -> List[str]:
     """步骤2: 裁剪宫格为独立图片"""
     logger.info("=" * 60)
@@ -745,13 +756,15 @@ def step2_crop_grids(
     
     # 裁剪积极情绪宫格 - 使用边缘检测精确裁剪
     logger.info("正在裁剪积极情绪宫格 (使用边缘检测)...")
-    positive_crops = crop_grid_to_images_precise(positive_grid, crops_dir, POSITIVE_EMOTIONS, logger=logger)
+    positive_crops = crop_grid_to_images_precise(positive_grid, crops_dir, POSITIVE_EMOTIONS, 
+                                                  character_name=character_name, logger=logger)
     all_crops.extend(positive_crops)
     logger.info(f"✓ 已裁剪 {len(positive_crops)} 张积极情绪图片")
     
     # 裁剪消极情绪宫格 - 使用边缘检测精确裁剪
     logger.info("正在裁剪消极情绪宫格 (使用边缘检测)...")
-    negative_crops = crop_grid_to_images_precise(negative_grid, crops_dir, NEGATIVE_EMOTIONS, logger=logger)
+    negative_crops = crop_grid_to_images_precise(negative_grid, crops_dir, NEGATIVE_EMOTIONS,
+                                                  character_name=character_name, logger=logger)
     all_crops.extend(negative_crops)
     logger.info(f"✓ 已裁剪 {len(negative_crops)} 张消极情绪图片")
     
@@ -801,7 +814,8 @@ def step4_generate_videos(
     upscaled_images: List[str],
     jimeng: JimengClient,
     output_dir: Path,
-    logger: logging.Logger
+    logger: logging.Logger,
+    character_name: str = ""
 ) -> List[str]:
     """步骤4: 生成情绪视频（使用即梦 API）"""
     logger.info("=" * 60)
@@ -815,8 +829,14 @@ def step4_generate_videos(
     total = len(upscaled_images)
     
     for i, image_path in enumerate(upscaled_images, 1):
-        # 从文件名提取情绪名称 (去除 _4k 后缀)
-        emotion = Path(image_path).stem.replace("_4k", "")
+        # 从文件名提取情绪名称 (去除 _4k 后缀和可能的角色名前缀)
+        filename_stem = Path(image_path).stem.replace("_4k", "")
+        
+        # 如果有角色名前缀，提取纯情绪名称用于查找 VIDEO_PROMPTS
+        if character_name and filename_stem.startswith(f"{character_name}_"):
+            emotion = filename_stem[len(f"{character_name}_"):]
+        else:
+            emotion = filename_stem
         
         if emotion not in VIDEO_PROMPTS:
             logger.warning(f"[{i}/{total}] 跳过未知情绪: {emotion}")
@@ -830,7 +850,11 @@ def step4_generate_videos(
                 VIDEO_PROMPTS[emotion],
                 duration=10
             )
-            output_path = videos_dir / f"{emotion}.mp4"
+            # 使用 角色名_情绪 格式命名视频
+            if character_name:
+                output_path = videos_dir / f"{character_name}_{emotion}.mp4"
+            else:
+                output_path = videos_dir / f"{emotion}.mp4"
             with open(output_path, 'wb') as f:
                 f.write(video_data)
             video_paths.append(str(output_path))
@@ -849,9 +873,12 @@ def step4_generate_videos(
 
 def run_workflow(config: WorkflowConfig):
     """运行完整工作流"""
-    # 创建输出目录
-    output_dir = Path(config.output_dir)
+    # 创建输出目录 - 使用角色名称建立子文件夹
+    base_output_dir = Path(config.output_dir)
+    output_dir = base_output_dir / config.character_name
     output_dir.mkdir(parents=True, exist_ok=True)
+    
+    character_name = config.character_name
     
     # 设置日志
     logger = setup_logging(output_dir)
@@ -859,8 +886,9 @@ def run_workflow(config: WorkflowConfig):
     logger.info("=" * 60)
     logger.info("情绪角色图片与视频生成工作流")
     logger.info("=" * 60)
+    logger.info(f"角色名称: {character_name}")
     logger.info(f"输入图片: {config.input_image}")
-    logger.info(f"输出目录: {config.output_dir}")
+    logger.info(f"输出目录: {output_dir}")
     logger.info(f"跳过视频: {config.skip_video}")
     logger.info(f"起始步骤: {config.from_step}")
     
@@ -943,11 +971,11 @@ def run_workflow(config: WorkflowConfig):
     # 步骤2: 裁剪宫格
     if 2 in steps_to_run:
         crop_images = step2_crop_grids(
-            positive_grid, negative_grid, output_dir, logger
+            positive_grid, negative_grid, output_dir, logger, character_name=character_name
         )
     else:
-        # 从已有文件加载
-        crop_images = [str(crops_dir / f"{e}.png") for e in ALL_EMOTIONS]
+        # 从已有文件加载 - 使用 角色名_情绪 格式
+        crop_images = [str(crops_dir / f"{character_name}_{e}.png") for e in ALL_EMOTIONS]
     
     # 步骤3: 4K提升
     if 3 in steps_to_run:
@@ -955,15 +983,15 @@ def run_workflow(config: WorkflowConfig):
             crop_images, config, gemini, output_dir, logger
         )
     else:
-        # 从已有文件加载
-        upscaled_images = [str(upscale_dir / f"{e}_4k.png") for e in ALL_EMOTIONS]
+        # 从已有文件加载 - 使用 角色名_情绪_4k 格式
+        upscaled_images = [str(upscale_dir / f"{character_name}_{e}_4k.png") for e in ALL_EMOTIONS]
     
     # 步骤4: 生成视频
     if 4 in steps_to_run:
         if not jimeng:
             logger.warning("未配置 JIMENG_API_KEY，跳过视频生成")
         else:
-            step4_generate_videos(upscaled_images, jimeng, output_dir, logger)
+            step4_generate_videos(upscaled_images, jimeng, output_dir, logger, character_name=character_name)
     
     logger.info("=" * 60)
     logger.info("工作流完成！")
@@ -980,17 +1008,23 @@ def main():
         epilog="""
 示例:
   # 基本用法
-  python workflow.py --image input/neutral.png --prompt0 "描述文字..."
+  python workflow.py --name Akari --image input/neutral.png --prompt0 "描述文字..."
   
   # 从文件读取 prompt0
-  python workflow.py --image input/neutral.png --prompt0-file input/prompt0.txt
+  python workflow.py --name Akari --image input/neutral.png --prompt0-file input/prompt0.txt
   
   # 跳过视频生成
-  python workflow.py --image input/neutral.png --prompt0 "..." --skip-video
+  python workflow.py --name Akari --image input/neutral.png --prompt0 "..." --skip-video
   
   # 从步骤3开始（断点续跑）
-  python workflow.py --image input/neutral.png --prompt0 "..." --from-step 3
+  python workflow.py --name Akari --image input/neutral.png --prompt0 "..." --from-step 3
         """
+    )
+    
+    parser.add_argument(
+        "--name", "-n",
+        required=True,
+        help="角色名称，用于创建输出文件夹和文件命名（如: Akari）"
     )
     
     parser.add_argument(
@@ -1056,6 +1090,7 @@ def main():
         input_image=os.path.abspath(args.image),
         prompt0=prompt0,
         output_dir=os.path.abspath(args.output),
+        character_name=args.name,
         skip_video=args.skip_video,
         from_step=args.from_step,
         only_step=args.only_step
