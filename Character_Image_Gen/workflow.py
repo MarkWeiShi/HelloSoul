@@ -360,19 +360,34 @@ def setup_logging(output_dir: Path) -> logging.Logger:
 # ============================================================================
 
 class GeminiClient:
-    """Google Gemini API 客户端"""
+    """Google Gemini API 客户端 - 使用新的 google.genai 包"""
     
     def __init__(self, api_key: str):
         try:
-            import google.generativeai as genai
-            genai.configure(api_key=api_key)
-            self.genai = genai
+            from google import genai
+            from google.genai import types
+            self.client = genai.Client(api_key=api_key)
+            self.types = types
             # 图片生成模型
-            self.image_model = genai.GenerativeModel('gemini-2.0-flash-exp-image-generation')
-            # 图片增强/理解模型
-            self.vision_model = genai.GenerativeModel('gemini-1.5-pro')
+            self.image_model = 'gemini-2.0-flash-exp-image-generation'
         except ImportError:
-            raise ImportError("请安装 google-generativeai: pip install google-generativeai")
+            raise ImportError("请安装 google-genai: pip install google-genai")
+    
+    def _call_with_retry(self, func, max_retries=3, initial_delay=60):
+        """带重试逻辑的 API 调用"""
+        from google.genai.errors import ClientError
+        
+        for attempt in range(max_retries):
+            try:
+                return func()
+            except ClientError as e:
+                if '429' in str(e) or 'RESOURCE_EXHAUSTED' in str(e):
+                    wait_time = initial_delay * (2 ** attempt)  # 指数退避
+                    logging.info(f"  配额限制，等待 {wait_time} 秒后重试 (attempt {attempt + 1}/{max_retries})...")
+                    time.sleep(wait_time)
+                else:
+                    raise
+        raise ValueError("超过最大重试次数")
     
     def generate_image_with_reference(self, prompt: str, reference_image_path: str) -> bytes:
         """根据参考图片生成新图片"""
@@ -380,51 +395,54 @@ class GeminiClient:
         with open(reference_image_path, 'rb') as f:
             image_data = f.read()
         
-        # 上传图片
-        uploaded_file = self.genai.upload_file(
-            io.BytesIO(image_data), 
-            mime_type="image/png"
-        )
+        def _generate():
+            # 生成请求
+            response = self.client.models.generate_content(
+                model=self.image_model,
+                contents=[
+                    self.types.Part.from_bytes(data=image_data, mime_type='image/png'),
+                    prompt
+                ],
+                config=self.types.GenerateContentConfig(
+                    response_modalities=['IMAGE', 'TEXT']
+                )
+            )
+            
+            # 提取图片数据
+            if response.candidates and response.candidates[0].content.parts:
+                for part in response.candidates[0].content.parts:
+                    if part.inline_data and part.inline_data.data:
+                        return part.inline_data.data
+            
+            raise ValueError("Gemini 未返回图片数据")
         
-        # 生成请求
-        response = self.image_model.generate_content(
-            [uploaded_file, prompt],
-            generation_config={
-                "response_mime_type": "image/png"
-            }
-        )
-        
-        # 提取图片数据
-        if response.parts:
-            for part in response.parts:
-                if hasattr(part, 'inline_data') and part.inline_data:
-                    return part.inline_data.data
-        
-        raise ValueError("Gemini 未返回图片数据")
+        return self._call_with_retry(_generate)
     
     def upscale_image(self, image_path: str, prompt: str) -> bytes:
         """提升图片分辨率"""
         with open(image_path, 'rb') as f:
             image_data = f.read()
         
-        uploaded_file = self.genai.upload_file(
-            io.BytesIO(image_data),
-            mime_type="image/png"
-        )
+        def _upscale():
+            response = self.client.models.generate_content(
+                model=self.image_model,
+                contents=[
+                    self.types.Part.from_bytes(data=image_data, mime_type='image/png'),
+                    prompt
+                ],
+                config=self.types.GenerateContentConfig(
+                    response_modalities=['IMAGE', 'TEXT']
+                )
+            )
+            
+            if response.candidates and response.candidates[0].content.parts:
+                for part in response.candidates[0].content.parts:
+                    if part.inline_data and part.inline_data.data:
+                        return part.inline_data.data
+            
+            raise ValueError("图片提升失败")
         
-        response = self.image_model.generate_content(
-            [uploaded_file, prompt],
-            generation_config={
-                "response_mime_type": "image/png"
-            }
-        )
-        
-        if response.parts:
-            for part in response.parts:
-                if hasattr(part, 'inline_data') and part.inline_data:
-                    return part.inline_data.data
-        
-        raise ValueError("图片提升失败")
+        return self._call_with_retry(_upscale)
 
 
 class JimengClient:
@@ -575,10 +593,34 @@ def detect_grid_lines(img_array, axis: int, num_lines: int = 4) -> List[int]:
     return sorted(lines)
 
 
-def crop_grid_to_images_precise(grid_path: str, output_dir: Path, emotions: List[str], 
-                                 character_name: str = "", padding: int = 5, logger=None) -> List[str]:
+def remove_background(img: Image.Image) -> Image.Image:
     """
-    使用边缘检测精确裁剪5x5宫格图为25张独立图片
+    使用 rembg 移除图片背景，生成透明背景的人物图片
+    
+    Args:
+        img: PIL Image 对象
+    
+    Returns:
+        带透明背景的 PIL Image 对象
+    """
+    try:
+        from rembg import remove
+        # rembg 接受 PIL Image 并返回带透明背景的 PIL Image
+        result = remove(img)
+        return result
+    except ImportError:
+        logging.warning("rembg 未安装，跳过背景移除。请运行: pip install rembg")
+        return img
+    except Exception as e:
+        logging.warning(f"背景移除失败: {e}，返回原图")
+        return img
+
+
+def crop_grid_to_images_precise(grid_path: str, output_dir: Path, emotions: List[str], 
+                                 character_name: str = "", padding: int = 5, 
+                                 remove_bg: bool = True, logger=None) -> List[str]:
+    """
+    使用边缘检测精确裁剪5x5宫格图为25张独立图片，并使用人物识别抠图
     
     Args:
         grid_path: 宫格图路径
@@ -586,6 +628,7 @@ def crop_grid_to_images_precise(grid_path: str, output_dir: Path, emotions: List
         emotions: 情绪名称列表（25个）
         character_name: 角色名称，用于文件命名前缀
         padding: 裁剪时向内收缩的像素数，避免包含分隔线
+        remove_bg: 是否移除背景生成透明PNG
         logger: 日志记录器
     
     Returns:
@@ -596,6 +639,9 @@ def crop_grid_to_images_precise(grid_path: str, output_dir: Path, emotions: List
     
     # 读取图片
     img = Image.open(grid_path)
+    # 确保图片有 alpha 通道
+    if img.mode != 'RGBA':
+        img = img.convert('RGBA')
     img_array = np.array(img)
     width, height = img.size
     
@@ -629,6 +675,25 @@ def crop_grid_to_images_precise(grid_path: str, output_dir: Path, emotions: List
     output_paths = []
     output_dir.mkdir(parents=True, exist_ok=True)
     
+    # 预加载 rembg 模型（如果需要移除背景）
+    if remove_bg:
+        try:
+            from rembg import remove, new_session
+            # 使用 u2net_human_seg 模型，专门针对人物分割
+            session = new_session("u2net_human_seg")
+            if logger:
+                logger.info("  使用 u2net_human_seg 模型进行人物抠图")
+        except ImportError:
+            if logger:
+                logger.warning("  rembg 未安装，跳过背景移除")
+            remove_bg = False
+            session = None
+        except Exception as e:
+            if logger:
+                logger.warning(f"  rembg 模型加载失败: {e}，跳过背景移除")
+            remove_bg = False
+            session = None
+    
     for i, emotion in enumerate(emotions):
         row = i // 5
         col = i % 5
@@ -647,6 +712,15 @@ def crop_grid_to_images_precise(grid_path: str, output_dir: Path, emotions: List
         
         # 裁剪
         cell_img = img.crop((left, top, right, bottom))
+        
+        # 移除背景，生成透明人物图
+        if remove_bg and session:
+            try:
+                from rembg import remove
+                cell_img = remove(cell_img, session=session)
+            except Exception as e:
+                if logger:
+                    logger.warning(f"  [{emotion}] 背景移除失败: {e}")
         
         # 保存 - 使用 角色名_情绪 格式命名
         if character_name:
