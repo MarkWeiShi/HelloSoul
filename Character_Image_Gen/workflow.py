@@ -617,24 +617,31 @@ def remove_background(img: Image.Image) -> Image.Image:
 
 
 def crop_grid_to_images_precise(grid_path: str, output_dir: Path, emotions: List[str], 
-                                 character_name: str = "", padding: int = 5, 
-                                 remove_bg: bool = True, logger=None) -> List[str]:
+                                 character_name: str = "", padding: int = 0, 
+                                 remove_bg: bool = True, output_size: Tuple[int, int] = (512, 768),
+                                 logger=None) -> List[str]:
     """
-    使用边缘检测精确裁剪5x5宫格图为25张独立图片，并使用人物识别抠图
+    精确裁剪5x5宫格图为25张独立图片，使用均匀分割 + 高级人物抠图
+    
+    改进点：
+    1. 使用均匀数学分割，避免边缘检测误差
+    2. 使用 isnet-general-use 模型，更好地保留衣服颜色
+    3. 所有输出图片统一尺寸
+    4. 启用 alpha matting 提高边缘质量
     
     Args:
         grid_path: 宫格图路径
         output_dir: 输出目录
         emotions: 情绪名称列表（25个）
         character_name: 角色名称，用于文件命名前缀
-        padding: 裁剪时向内收缩的像素数，避免包含分隔线
+        padding: 裁剪时向内收缩的像素数（默认0，使用均匀分割不需要padding）
         remove_bg: 是否移除背景生成透明PNG
+        output_size: 统一输出尺寸 (宽, 高)，默认 (512, 768) 竖版
         logger: 日志记录器
     
     Returns:
         输出文件路径列表
     """
-    import cv2
     import numpy as np
     
     # 读取图片
@@ -642,67 +649,56 @@ def crop_grid_to_images_precise(grid_path: str, output_dir: Path, emotions: List
     # 确保图片有 alpha 通道
     if img.mode != 'RGBA':
         img = img.convert('RGBA')
-    img_array = np.array(img)
     width, height = img.size
     
     if logger:
         logger.info(f"  图片尺寸: {width}x{height}")
     
-    # 检测垂直分隔线（找x坐标）
-    v_lines = detect_grid_lines(img_array, axis=1, num_lines=4)
-    # 检测水平分隔线（找y坐标）
-    h_lines = detect_grid_lines(img_array, axis=0, num_lines=4)
+    # 使用均匀分割（5x5宫格）- 比边缘检测更可靠
+    cell_width = width / 5
+    cell_height = height / 5
     
     if logger:
-        logger.info(f"  检测到垂直线: {v_lines}")
-        logger.info(f"  检测到水平线: {h_lines}")
-    
-    # 构建完整的边界列表（包括图片边缘）
-    x_boundaries = [0] + v_lines + [width]
-    y_boundaries = [0] + h_lines + [height]
-    
-    # 确保有6个边界点（5个单元格）
-    if len(x_boundaries) != 6:
-        if logger:
-            logger.warning(f"  垂直边界数量不正确({len(x_boundaries)})，使用均匀分割")
-        x_boundaries = [i * width // 5 for i in range(6)]
-    
-    if len(y_boundaries) != 6:
-        if logger:
-            logger.warning(f"  水平边界数量不正确({len(y_boundaries)})，使用均匀分割")
-        y_boundaries = [i * height // 5 for i in range(6)]
+        logger.info(f"  均匀分割: 每个宫格 {cell_width:.1f}x{cell_height:.1f} 像素")
     
     output_paths = []
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    # 预加载 rembg 模型（如果需要移除背景）
+    # 预加载 rembg 模型
+    session = None
     if remove_bg:
         try:
             from rembg import remove, new_session
-            # 使用 u2net_human_seg 模型，专门针对人物分割
-            session = new_session("u2net_human_seg")
+            # 使用 isnet-general-use 模型 - 更好地保留衣服颜色，不会误判红色等颜色
+            # 备选: u2net, birefnet-general
+            model_name = "isnet-general-use"
+            session = new_session(model_name)
             if logger:
-                logger.info("  使用 u2net_human_seg 模型进行人物抠图")
+                logger.info(f"  使用 {model_name} 模型进行人物抠图 (统一输出: {output_size[0]}x{output_size[1]})")
         except ImportError:
             if logger:
                 logger.warning("  rembg 未安装，跳过背景移除")
             remove_bg = False
-            session = None
         except Exception as e:
             if logger:
-                logger.warning(f"  rembg 模型加载失败: {e}，跳过背景移除")
-            remove_bg = False
-            session = None
+                logger.warning(f"  rembg 模型加载失败: {e}，尝试默认模型")
+            try:
+                session = new_session("u2net")
+                if logger:
+                    logger.info("  使用 u2net 模型作为后备")
+            except:
+                remove_bg = False
+                session = None
     
     for i, emotion in enumerate(emotions):
         row = i // 5
         col = i % 5
         
-        # 获取单元格边界
-        left = x_boundaries[col] + padding
-        right = x_boundaries[col + 1] - padding
-        top = y_boundaries[row] + padding
-        bottom = y_boundaries[row + 1] - padding
+        # 计算单元格边界（精确浮点计算）
+        left = int(col * cell_width) + padding
+        right = int((col + 1) * cell_width) - padding
+        top = int(row * cell_height) + padding
+        bottom = int((row + 1) * cell_height) - padding
         
         # 确保边界有效
         left = max(0, left)
@@ -717,10 +713,25 @@ def crop_grid_to_images_precise(grid_path: str, output_dir: Path, emotions: List
         if remove_bg and session:
             try:
                 from rembg import remove
-                cell_img = remove(cell_img, session=session)
+                # 使用 alpha_matting 提高边缘质量
+                cell_img = remove(
+                    cell_img, 
+                    session=session,
+                    alpha_matting=True,
+                    alpha_matting_foreground_threshold=240,
+                    alpha_matting_background_threshold=10,
+                    alpha_matting_erode_size=10
+                )
             except Exception as e:
                 if logger:
-                    logger.warning(f"  [{emotion}] 背景移除失败: {e}")
+                    logger.warning(f"  [{emotion}] 背景移除失败: {e}，尝试基础模式")
+                try:
+                    cell_img = remove(cell_img, session=session)
+                except:
+                    pass
+        
+        # 统一调整输出尺寸（保持宽高比，居中填充透明背景）
+        cell_img = resize_and_center(cell_img, output_size)
         
         # 保存 - 使用 角色名_情绪 格式命名
         if character_name:
@@ -731,6 +742,43 @@ def crop_grid_to_images_precise(grid_path: str, output_dir: Path, emotions: List
         output_paths.append(str(output_path))
     
     return output_paths
+
+
+def resize_and_center(img: Image.Image, target_size: Tuple[int, int]) -> Image.Image:
+    """
+    调整图片大小并居中放置在透明背景上
+    
+    Args:
+        img: 原始图片（RGBA模式）
+        target_size: 目标尺寸 (宽, 高)
+    
+    Returns:
+        调整后的图片
+    """
+    target_w, target_h = target_size
+    orig_w, orig_h = img.size
+    
+    # 计算缩放比例（保持宽高比，适应目标尺寸）
+    scale = min(target_w / orig_w, target_h / orig_h)
+    
+    # 计算新尺寸
+    new_w = int(orig_w * scale)
+    new_h = int(orig_h * scale)
+    
+    # 缩放图片（使用高质量重采样）
+    resized = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+    
+    # 创建透明背景画布
+    result = Image.new('RGBA', target_size, (0, 0, 0, 0))
+    
+    # 计算居中位置
+    paste_x = (target_w - new_w) // 2
+    paste_y = (target_h - new_h) // 2
+    
+    # 粘贴到画布中央
+    result.paste(resized, (paste_x, paste_y), resized)
+    
+    return result
 
 
 def crop_grid_to_images(grid_path: str, output_dir: Path, emotions: List[str], character_name: str = "") -> List[str]:
