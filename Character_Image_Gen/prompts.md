@@ -75,6 +75,14 @@ Keep IDENTICAL across all grid cells:
 24. Calm_Confidence — composed expression, steady gaze, balanced posture
 25. Delight — sparkling eyes, joyful smile, hands lifted in excitement
 
+=== GRID CELL SPACING REQUIREMENTS ===
+- Each grid cell MUST have clear visible gaps/margins on all sides (top, bottom, left, right)
+- Character in each cell should be centered with padding around them
+- Leave at least 5-8% empty space as margin on each side of each cell
+- NO character element (hands, hair, clothing) should touch or extend to cell edges
+- Characters must NOT overlap or bleed into adjacent cells
+- Clear separation between all 25 grid cells for easy cropping
+
 === QUALITY REQUIREMENTS ===
 - Transparent background (NO solid color background)
 - NO text labels on the image
@@ -141,6 +149,14 @@ Keep IDENTICAL across all grid cells:
 23. Confusion — brows raised unevenly, unfocused eyes, mouth open
 24. Stress — tense facial muscles, furrowed brows, tight lips
 25. Exhaustion — drooping eyelids, slumped posture, fatigued
+
+=== GRID CELL SPACING REQUIREMENTS ===
+- Each grid cell MUST have clear visible gaps/margins on all sides (top, bottom, left, right)
+- Character in each cell should be centered with padding around them
+- Leave at least 5-8% empty space as margin on each side of each cell
+- NO character element (hands, hair, clothing) should touch or extend to cell edges
+- Characters must NOT overlap or bleed into adjacent cells
+- Clear separation between all 25 grid cells for easy cropping
 
 === QUALITY REQUIREMENTS ===
 - Transparent background (NO solid color background)
