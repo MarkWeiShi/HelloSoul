@@ -1,0 +1,17 @@
+# 情绪角色图片与视频生成工作流 - 依赖包
+# Emotion Character Image & Video Generation Workflow - Dependencies
+
+# Google Gemini API
+google-generativeai>=0.5.0
+
+# 图片处理
+Pillow>=10.0.0
+
+# 环境变量管理
+python-dotenv>=1.0.0
+
+# HTTP 请求（用于 Runway API）
+requests>=2.31.0
+
+# 可选：进度条显示
+tqdm>=4.66.0
