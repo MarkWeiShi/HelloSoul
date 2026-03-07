@@ -82,7 +82,15 @@ Keep IDENTICAL across all grid cells:
 - Art style and rendering
 - Lighting direction
 - Background (transparent)
-- Camera framing (chest-up, upper body visible)
+- Camera framing: MUST show complete upper body from KNEES to HEAD TOP (not just chest-up)
+- CHARACTER SIZE: ALL 25 characters MUST have EXACTLY the same size and proportion in their respective grid cells
+
+=== BODY FRAMING REQUIREMENTS (CRITICAL) ===
+- Each grid cell MUST include: head top, full face, neck, shoulders, chest, waist, hips, and knees
+- The character's knees should be visible at the bottom of each cell
+- The character's head top should have small margin from the top of each cell
+- Character should occupy approximately 80-85% of the cell height
+- All 25 characters must be rendered at IDENTICAL scale/size relative to their grid cell
 
 === VARY ONLY THESE ELEMENTS ===
 - Facial expression (muscle configuration)
@@ -136,7 +144,8 @@ Keep IDENTICAL across all grid cells:
 - Transparent background (NO solid color background)
 - NO text labels on the image
 - Each grid cell: highest resolution possible
-- Must show 100% full upper body in each cell
+- Must show complete upper body from KNEES to HEAD TOP in each cell
+- All 25 characters must have IDENTICAL size and proportion
 - Each emotion clearly distinct through facial muscles
 - All 25 images SAME character identity
 """
@@ -152,7 +161,15 @@ Keep IDENTICAL across all grid cells:
 - Art style and rendering
 - Lighting direction
 - Background (transparent)
-- Camera framing (chest-up, upper body visible)
+- Camera framing: MUST show complete upper body from KNEES to HEAD TOP (not just chest-up)
+- CHARACTER SIZE: ALL 25 characters MUST have EXACTLY the same size and proportion in their respective grid cells
+
+=== BODY FRAMING REQUIREMENTS (CRITICAL) ===
+- Each grid cell MUST include: head top, full face, neck, shoulders, chest, waist, hips, and knees
+- The character's knees should be visible at the bottom of each cell
+- The character's head top should have small margin from the top of each cell
+- Character should occupy approximately 80-85% of the cell height
+- All 25 characters must be rendered at IDENTICAL scale/size relative to their grid cell
 
 === VARY ONLY THESE ELEMENTS ===
 - Facial expression (muscle configuration)
@@ -206,7 +223,8 @@ Keep IDENTICAL across all grid cells:
 - Transparent background (NO solid color background)
 - NO text labels on the image
 - Each grid cell: highest resolution possible
-- Must show 100% full upper body in each cell
+- Must show complete upper body from KNEES to HEAD TOP in each cell
+- All 25 characters must have IDENTICAL size and proportion
 - Each emotion clearly distinct through facial muscles
 - All 25 images SAME character identity
 """
@@ -279,6 +297,9 @@ Use the following character description to restore and enhance details:
 - Resolution: 4K (3840×2160 minimum)
 - The enhanced image should look like a high-budget professional production
 """
+
+# 【重要】视频循环强调 - 会自动追加到每个视频提示词后
+VIDEO_LOOP_EMPHASIS = "【起始帧要求】视频起始帧必须完全呈现人物从膝盖到头顶（包括头发最高顶部）的所有身体部分，两侧肩膀和手臂必须完整呈现在画面内，不得有任何裁切。【全程一致性约束】视频所有帧（从第一帧到最后一帧）的人物大小必须完全一致不变，人物离镜头的距离必须完全一致不变，禁止任何缩放、推拉镜头或改变角色在画面中比例的效果，镜头固定不动，身体动作不能改变人物大小和离镜头距离，只有角色面部表情和肢体动作变化。【循环要求】视频必须形成完美循环：第一帧和最后一帧必须是完全相同的画面，动作在结尾时平滑过渡回起始状态。"
 
 # 视频提示词字典
 VIDEO_PROMPTS = {
@@ -616,27 +637,72 @@ def remove_background(img: Image.Image) -> Image.Image:
         return img
 
 
+def find_character_bbox(img: Image.Image, padding_ratio: float = 0.05) -> Tuple[int, int, int, int]:
+    """
+    找到图片中人物的边界框（基于非透明像素）
+    
+    Args:
+        img: RGBA 模式的 PIL Image
+        padding_ratio: 边界框扩展比例
+    
+    Returns:
+        (left, top, right, bottom) 边界框坐标
+    """
+    import numpy as np
+    
+    if img.mode != 'RGBA':
+        img = img.convert('RGBA')
+    
+    # 获取 alpha 通道
+    alpha = np.array(img.split()[3])
+    
+    # 找到非透明像素的位置
+    non_transparent = np.where(alpha > 10)
+    
+    if len(non_transparent[0]) == 0:
+        # 没有找到非透明像素，返回整个图片
+        return (0, 0, img.width, img.height)
+    
+    # 计算边界
+    top = non_transparent[0].min()
+    bottom = non_transparent[0].max()
+    left = non_transparent[1].min()
+    right = non_transparent[1].max()
+    
+    # 添加 padding
+    pad_h = int((bottom - top) * padding_ratio)
+    pad_w = int((right - left) * padding_ratio)
+    
+    left = max(0, left - pad_w)
+    top = max(0, top - pad_h)
+    right = min(img.width, right + pad_w)
+    bottom = min(img.height, bottom + pad_h)
+    
+    return (left, top, right, bottom)
+
+
 def crop_grid_to_images_precise(grid_path: str, output_dir: Path, emotions: List[str], 
-                                 character_name: str = "", padding: int = 0, 
+                                 character_name: str = "", padding: int = 2, 
                                  remove_bg: bool = True, output_size: Tuple[int, int] = (512, 768),
                                  logger=None) -> List[str]:
     """
-    精确裁剪5x5宫格图为25张独立图片，使用均匀分割 + 高级人物抠图
+    精确裁剪5x5宫格图为25张独立图片
     
-    改进点：
-    1. 使用均匀数学分割，避免边缘检测误差
-    2. 使用 isnet-general-use 模型，更好地保留衣服颜色
-    3. 所有输出图片统一尺寸
-    4. 启用 alpha matting 提高边缘质量
+    改进算法 v2:
+    1. 数学均匀分割宫格（带内缩padding避免切到边缘位）
+    2. 使用 birefnet-general 模型 - 最先进的抠图模型，颜色保真度极高
+    3. 禁用 alpha_matting 避免颜色误判（如红色蝴蝶结变白）
+    4. 两阶段处理：先统一收集所有人物，再统一缩放
+    5. 确保包含从膝盖到头顶的完整身体部分
     
     Args:
         grid_path: 宫格图路径
         output_dir: 输出目录
         emotions: 情绪名称列表（25个）
-        character_name: 角色名称，用于文件命名前缀
-        padding: 裁剪时向内收缩的像素数（默认0，使用均匀分割不需要padding）
-        remove_bg: 是否移除背景生成透明PNG
-        output_size: 统一输出尺寸 (宽, 高)，默认 (512, 768) 竖版
+        character_name: 角色名称
+        padding: 宫格内缩像素数，避免切到相邻宫格
+        remove_bg: 是否移除背景
+        output_size: 最终输出尺寸
         logger: 日志记录器
     
     Returns:
@@ -644,57 +710,62 @@ def crop_grid_to_images_precise(grid_path: str, output_dir: Path, emotions: List
     """
     import numpy as np
     
-    # 读取图片
-    img = Image.open(grid_path)
-    # 确保图片有 alpha 通道
-    if img.mode != 'RGBA':
-        img = img.convert('RGBA')
-    width, height = img.size
+    # 读取宫格图
+    grid_img = Image.open(grid_path)
+    if grid_img.mode != 'RGBA':
+        grid_img = grid_img.convert('RGBA')
+    grid_width, grid_height = grid_img.size
     
     if logger:
-        logger.info(f"  图片尺寸: {width}x{height}")
+        logger.info(f"  宫格图尺寸: {grid_width}x{grid_height}")
     
-    # 使用均匀分割（5x5宫格）- 比边缘检测更可靠
-    cell_width = width / 5
-    cell_height = height / 5
+    # 计算每个宫格的精确尺寸
+    cell_width = grid_width / 5.0
+    cell_height = grid_height / 5.0
     
     if logger:
-        logger.info(f"  均匀分割: 每个宫格 {cell_width:.1f}x{cell_height:.1f} 像素")
+        logger.info(f"  单个宫格尺寸: {cell_width:.1f}x{cell_height:.1f}")
     
-    output_paths = []
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    # 预加载 rembg 模型
+    # 第一阶段：裁剪所有宫格并移除背景
+    cell_images = []
     session = None
+    
     if remove_bg:
         try:
             from rembg import remove, new_session
-            # 使用 isnet-general-use 模型 - 更好地保留衣服颜色，不会误判红色等颜色
-            # 备选: u2net, birefnet-general
-            model_name = "isnet-general-use"
-            session = new_session(model_name)
-            if logger:
-                logger.info(f"  使用 {model_name} 模型进行人物抠图 (统一输出: {output_size[0]}x{output_size[1]})")
+            # 尝试使用 birefnet-general - 最新最准确的模型
+            # 如果不可用，回退到 isnet-general-use
+            try:
+                model_name = "birefnet-general"
+                session = new_session(model_name)
+                if logger:
+                    logger.info(f"  使用 {model_name} 模型（最高精度）")
+            except Exception:
+                model_name = "isnet-general-use"
+                session = new_session(model_name)
+                if logger:
+                    logger.info(f"  使用 {model_name} 模型")
         except ImportError:
             if logger:
                 logger.warning("  rembg 未安装，跳过背景移除")
             remove_bg = False
+            session = None
         except Exception as e:
             if logger:
-                logger.warning(f"  rembg 模型加载失败: {e}，尝试默认模型")
-            try:
-                session = new_session("u2net")
-                if logger:
-                    logger.info("  使用 u2net 模型作为后备")
-            except:
-                remove_bg = False
-                session = None
+                logger.warning(f"  rembg 初始化失败: {e}")
+            remove_bg = False
+            session = None
+    
+    if logger:
+        logger.info(f"  开始裁剪 {len(emotions)} 个宫格...")
     
     for i, emotion in enumerate(emotions):
         row = i // 5
         col = i % 5
         
-        # 计算单元格边界（精确浮点计算）
+        # 计算宫格边界（使用 padding 内缩，避免切到边缘）
         left = int(col * cell_width) + padding
         right = int((col + 1) * cell_width) - padding
         top = int(row * cell_height) + padding
@@ -703,43 +774,109 @@ def crop_grid_to_images_precise(grid_path: str, output_dir: Path, emotions: List
         # 确保边界有效
         left = max(0, left)
         top = max(0, top)
-        right = min(width, right)
-        bottom = min(height, bottom)
+        right = min(grid_width, right)
+        bottom = min(grid_height, bottom)
         
-        # 裁剪
-        cell_img = img.crop((left, top, right, bottom))
+        # 裁剪宫格
+        cell_img = grid_img.crop((left, top, right, bottom))
         
-        # 移除背景，生成透明人物图
+        # 移除背景 - 使用保守设置，不使用 alpha_matting 以避免颜色误判
         if remove_bg and session:
             try:
                 from rembg import remove
-                # 使用 alpha_matting 提高边缘质量
+                # 关键：不使用 alpha_matting，避免红色等颜色被误判为背景
                 cell_img = remove(
-                    cell_img, 
+                    cell_img,
                     session=session,
-                    alpha_matting=True,
-                    alpha_matting_foreground_threshold=240,
-                    alpha_matting_background_threshold=10,
-                    alpha_matting_erode_size=10
+                    alpha_matting=False,  # 禁用，防止颜色误判
+                    post_process_mask=True  # 后处理优化边缘
                 )
             except Exception as e:
                 if logger:
-                    logger.warning(f"  [{emotion}] 背景移除失败: {e}，尝试基础模式")
-                try:
-                    cell_img = remove(cell_img, session=session)
-                except:
-                    pass
+                    logger.warning(f"  [{emotion}] 背景移除失败: {e}")
         
-        # 统一调整输出尺寸（保持宽高比，居中填充透明背景）
-        cell_img = resize_and_center(cell_img, output_size)
+        cell_images.append((emotion, cell_img))
+    
+    # 第二阶段：统一处理所有人物尺寸
+    # 找到所有人物的边界框，计算统一的缩放比例
+    if logger:
+        logger.info(f"  分析人物边界框并统一尺寸...")
+    
+    # 收集所有人物的有效区域
+    char_regions = []
+    for emotion, cell_img in cell_images:
+        bbox = find_character_bbox(cell_img, padding_ratio=0.03)
+        char_width = bbox[2] - bbox[0]
+        char_height = bbox[3] - bbox[1]
+        char_regions.append({
+            'emotion': emotion,
+            'img': cell_img,
+            'bbox': bbox,
+            'width': char_width,
+            'height': char_height
+        })
+    
+    # 计算所有人物中最大的尺寸（作为参考）
+    max_char_height = max(r['height'] for r in char_regions)
+    max_char_width = max(r['width'] for r in char_regions)
+    
+    if logger:
+        logger.info(f"  人物最大尺寸: {max_char_width}x{max_char_height}")
+    
+    # 计算统一的缩放因子：让所有人物在输出图中占据相同比例的空间
+    # 目标：人物高度占输出高度的85%
+    target_char_height = int(output_size[1] * 0.85)
+    uniform_scale = target_char_height / max_char_height
+    
+    output_paths = []
+    
+    for region in char_regions:
+        emotion = region['emotion']
+        cell_img = region['img']
+        bbox = region['bbox']
         
-        # 保存 - 使用 角色名_情绪 格式命名
+        # 裁剪出人物区域（带padding）
+        char_img = cell_img.crop(bbox)
+        
+        # 使用统一缩放因子缩放
+        new_width = int(char_img.width * uniform_scale)
+        new_height = int(char_img.height * uniform_scale)
+        
+        # 确保不超过输出尺寸
+        if new_width > output_size[0]:
+            scale_down = output_size[0] / new_width
+            new_width = output_size[0]
+            new_height = int(new_height * scale_down)
+        
+        if new_height > output_size[1]:
+            scale_down = output_size[1] / new_height
+            new_height = output_size[1]
+            new_width = int(new_width * scale_down)
+        
+        # 缩放人物
+        char_resized = char_img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        
+        # 创建输出画布（透明背景）
+        result = Image.new('RGBA', output_size, (0, 0, 0, 0))
+        
+        # 居中放置人物
+        paste_x = (output_size[0] - new_width) // 2
+        paste_y = (output_size[1] - new_height) // 2
+        
+        # 粘贴（使用 alpha 通道作为 mask）
+        result.paste(char_resized, (paste_x, paste_y), char_resized)
+        
+        # 保存
         if character_name:
             output_path = output_dir / f"{character_name}_{emotion}.png"
         else:
             output_path = output_dir / f"{emotion}.png"
-        cell_img.save(output_path, "PNG")
+        
+        result.save(output_path, "PNG")
         output_paths.append(str(output_path))
+    
+    if logger:
+        logger.info(f"  ✓ 已裁剪 {len(output_paths)} 张图片（统一尺寸: {output_size[0]}x{output_size[1]}）")
     
     return output_paths
 
@@ -967,9 +1104,11 @@ def step4_generate_videos(
         logger.info(f"[{i}/{total}] 正在生成视频: {emotion}")
         
         try:
+            # 组合提示词：情绪提示词 + 循环强调
+            full_prompt = f"{VIDEO_PROMPTS[emotion]} {VIDEO_LOOP_EMPHASIS}"
             video_data = jimeng.generate_video(
                 image_path,
-                VIDEO_PROMPTS[emotion],
+                full_prompt,
                 duration=10
             )
             # 使用 角色名_情绪 格式命名视频
