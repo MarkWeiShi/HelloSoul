@@ -1,5 +1,5 @@
 import { useUserStore } from '../store/userStore';
-import type { EmotionState } from '../types/chat';
+import type { Emotion } from '../types/chat';
 
 /**
  * Stream chat messages via SSE.
@@ -19,7 +19,7 @@ export async function streamChatMessage(
     audioUrl?: string;
   } | null;
   memoryRecall: { content: string; date: string } | null;
-  emotionState?: EmotionState;
+  emotion?: Emotion;
   sceneId?: string;
 }> {
   const token = useUserStore.getState().token;

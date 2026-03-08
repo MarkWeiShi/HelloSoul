@@ -103,7 +103,8 @@ model ChatMessage {
   type           String   @default("text") // text|voice|inner_voice|lifestyle_post|language_tip|memory_recall|proactive
   content        String
   metadata       String   @default("{}") // JSON: audioUrl, transcription, innerVoice, etc.
-  emotionState   String?  // EMO_01 through EMO_14 (Module F)
+  emotionKey     String?  // one of 50 emotion keys
+  emotionEndKey  String?  // optional end transition key
   gazeDirection  String?  // user|away|down (Module F)
   sceneId        String?  // scene background ID (Module F)
   createdAt      DateTime @default(now())
@@ -196,7 +197,7 @@ model ProactiveMessage {
   characterId  String
   triggerType  String    // thought_of_you|weather_share|followup_care|miss_you|birthday|seasonal
   content      String
-  emotionState String?   // EMO code for display
+  emotionKey   String?   // one of 50 emotion keys
   scheduledAt  DateTime
   sentAt       DateTime?
   readAt       DateTime?

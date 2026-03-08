@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Cake, Heart, X } from 'lucide-react';
 import { apiGetBirthdayContent } from '../../api/proactive';
 import type { BirthdayContent } from '../../types/chat';
-import { EMOTION_DISPLAY, type EmotionCode } from '../../types/chat';
+import { EMOTION_DISPLAY, type EmotionKey } from '../../types/chat';
 
 interface BirthdayExperienceProps {
   characterId: string;
@@ -137,9 +137,9 @@ export function BirthdayExperience({
             </p>
 
             {/* Emotion state */}
-            {currentContent.emotionState && (
+            {currentContent.emotionKey && (
               <span className="text-2xl mb-2 block">
-                {EMOTION_DISPLAY[currentContent.emotionState as EmotionCode]?.emoji || ''}
+                {EMOTION_DISPLAY[currentContent.emotionKey as EmotionKey]?.emoji || ''}
               </span>
             )}
 

@@ -1,18 +1,19 @@
 import { create } from 'zustand';
-import type { EmotionState, EmotionCode } from '../types/chat';
+import type { Emotion, EmotionKey } from '../types/chat';
+import { DEFAULT_EMOTION_KEY } from '../types/chat';
 
 interface EmotionStore {
-  currentEmotion: EmotionState;
+  currentEmotion: Emotion;
   currentSceneId: string | null;
-  emotionHistory: { emotion: EmotionCode; timestamp: number }[];
+  emotionHistory: { emotionKey: EmotionKey; timestamp: number }[];
 
-  setEmotion: (emotion: EmotionState) => void;
+  setEmotion: (emotion: Emotion) => void;
   setScene: (sceneId: string | null) => void;
   reset: () => void;
 }
 
-const DEFAULT_EMOTION: EmotionState = {
-  current: 'EMO_01',
+const DEFAULT_EMOTION: Emotion = {
+  key: DEFAULT_EMOTION_KEY,
   gazeDirection: 'user',
 };
 
@@ -26,7 +27,7 @@ export const useEmotionStore = create<EmotionStore>((set) => ({
       currentEmotion: emotion,
       emotionHistory: [
         ...state.emotionHistory.slice(-20), // Keep last 20
-        { emotion: emotion.current, timestamp: Date.now() },
+        { emotionKey: emotion.key, timestamp: Date.now() },
       ],
     })),
 

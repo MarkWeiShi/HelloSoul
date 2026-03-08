@@ -1,6 +1,7 @@
 import prisma from '../lib/prisma';
 import { completeHaiku } from './claudeService';
 import { getCharacterConfig } from '../prompts/personas';
+import { inferEmotionKeyFromText } from './emotionEngine';
 
 // ===== Module H: Proactive Message Service =====
 // "She's thinking of you — not waiting for you to open the app"
@@ -76,7 +77,7 @@ export async function generateProactiveMessage(
   characterId: string,
   triggerType: ProactiveTriggerType,
   context: ProactiveContext
-): Promise<{ content: string; emotionState: string }> {
+): Promise<{ content: string; emotionKey: string }> {
   const config = getCharacterConfig(characterId);
   const promptFn = TRIGGER_PROMPTS[triggerType] || TRIGGER_PROMPTS.thought_of_you;
 
@@ -90,19 +91,12 @@ Keep it short and natural.`,
     150
   );
 
-  // Determine emotion state
-  const emotionMap: Record<string, string> = {
-    thought_of_you: 'EMO_03', // shy/moved
-    weather_share: 'EMO_01', // idle/content
-    followup_care: 'EMO_04', // attentive
-    miss_you: 'EMO_05', // worried/caring
-    seasonal: 'EMO_02', // happy
-    birthday: 'EMO_02', // happy
-  };
+  const normalizedContent = content.trim();
+  const emotionKey = inferEmotionKeyFromText(normalizedContent, { triggerType });
 
   return {
-    content: content.trim(),
-    emotionState: emotionMap[triggerType] || 'EMO_01',
+    content: normalizedContent,
+    emotionKey,
   };
 }
 
@@ -115,7 +109,7 @@ export async function scheduleProactiveMessage(
   triggerType: ProactiveTriggerType,
   context: ProactiveContext
 ): Promise<string> {
-  const { content, emotionState } = await generateProactiveMessage(
+  const { content, emotionKey } = await generateProactiveMessage(
     userId,
     characterId,
     triggerType,
@@ -130,7 +124,7 @@ export async function scheduleProactiveMessage(
       characterId,
       triggerType,
       content,
-      emotionState,
+      emotionKey,
       scheduledAt: sendTime,
     },
   });

@@ -54,7 +54,7 @@ export function useChat() {
           content: finalContent,
           timestamp: new Date(),
           characterId,
-          emotionState: metadata.emotionState,
+          emotion: metadata.emotion,
           sceneId: metadata.sceneId,
           hasInnerVoice: !!metadata.innerVoice,
           innerVoiceRevealed: false,
@@ -74,8 +74,8 @@ export function useChat() {
         setStreamingContent('');
 
         // Update emotion & scene state
-        if (metadata.emotionState) {
-          setEmotion(metadata.emotionState);
+        if (metadata.emotion) {
+          setEmotion(metadata.emotion);
         }
         if (metadata.sceneId) {
           setScene(metadata.sceneId);

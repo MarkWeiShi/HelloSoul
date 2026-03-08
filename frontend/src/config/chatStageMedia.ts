@@ -1,4 +1,9 @@
-import { EMOTION_DISPLAY, type EmotionCode } from '../types/chat';
+import {
+  DEFAULT_EMOTION_KEY,
+  EMOTION_DISPLAY,
+  type EmotionKey,
+  normalizeEmotionKey,
+} from '../types/chat';
 import type { CharacterId } from '../types/persona';
 
 export interface StageMediaConfig {
@@ -7,78 +12,40 @@ export interface StageMediaConfig {
   label: string;
 }
 
-const BASE_MOOD_VIDEO_MAP: Record<string, string> = {
-  trust: '/chat-videos/akari/Akari_trust.mp4',
-  serenity: '/chat-videos/akari/Akari_serenity.mp4',
-  contentment: '/chat-videos/akari/Akari_contentment.mp4',
-  curiosity: '/chat-videos/akari/Akari_curiosity.mp4',
+const CHARACTER_NEUTRAL_VIDEO: Record<CharacterId, string> = {
+  akari: '/chat-videos/akari/Akari_contentment.mp4',
+  // Other characters do not have 50-pack assets yet.
+  mina: '/chat-videos/akari/Akari_contentment.mp4',
+  sophie: '/chat-videos/akari/Akari_contentment.mp4',
+  carlos: '/chat-videos/akari/Akari_contentment.mp4',
 };
 
-const EMOTION_TO_MOOD_MAP: Record<string, string> = {
-  EMO_01: 'trust',
-  EMO_02: 'contentment',
-  EMO_03: 'trust',
-  EMO_04: 'curiosity',
-  EMO_05: 'serenity',
-  EMO_06: 'curiosity',
-  EMO_07: 'curiosity',
-  EMO_08: 'curiosity',
-  EMO_09: 'contentment',
-  EMO_10: 'trust',
-  EMO_11: 'serenity',
-  EMO_12: 'serenity',
-  EMO_13: 'contentment',
-  EMO_14: 'curiosity',
+const CHARACTER_VIDEO_PREFIX: Record<CharacterId, string | null> = {
+  akari: '/chat-videos/akari/Akari_',
+  mina: null,
+  sophie: null,
+  carlos: null,
 };
-
-const CHARACTER_DEFAULT_VIDEO: Record<string, string> = {
-  akari: BASE_MOOD_VIDEO_MAP.trust,
-  mina: BASE_MOOD_VIDEO_MAP.trust,
-  sophie: BASE_MOOD_VIDEO_MAP.trust,
-  carlos: BASE_MOOD_VIDEO_MAP.trust,
-};
-
-const FALLBACK_VIDEO_SRC = BASE_MOOD_VIDEO_MAP.trust;
-
-const MOOD_LABEL_MAP: Record<string, string> = {
-  trust: 'Trust',
-  serenity: 'Serenity',
-  contentment: 'Contentment',
-  curiosity: 'Curiosity',
-};
-
-function normalizeEmotionCode(emotionCode?: EmotionCode | string): string {
-  if (!emotionCode) return 'EMO_01';
-  return String(emotionCode).trim().toUpperCase();
-}
 
 export function resolveStageMedia(
   characterId: CharacterId,
-  emotionCode?: EmotionCode | string
+  emotionKey?: EmotionKey | string
 ): StageMediaConfig {
-  const normalizedEmotion = normalizeEmotionCode(emotionCode);
-  const moodKey = EMOTION_TO_MOOD_MAP[normalizedEmotion] || 'trust';
+  const normalizedKey = normalizeEmotionKey(String(emotionKey || DEFAULT_EMOTION_KEY));
+  const neutralVideo = CHARACTER_NEUTRAL_VIDEO[characterId] || CHARACTER_NEUTRAL_VIDEO.akari;
+  const prefix = CHARACTER_VIDEO_PREFIX[characterId];
 
-  const defaultVideoByCharacter =
-    CHARACTER_DEFAULT_VIDEO[characterId] || FALLBACK_VIDEO_SRC;
-
-  const mappedVideo = BASE_MOOD_VIDEO_MAP[moodKey];
-  const videoSrc = mappedVideo || defaultVideoByCharacter;
-
-  const emotionLabel =
-    normalizedEmotion in EMOTION_DISPLAY
-      ? EMOTION_DISPLAY[normalizedEmotion as EmotionCode].label
-      : MOOD_LABEL_MAP[moodKey] || 'Connected';
+  const videoSrc = prefix ? `${prefix}${normalizedKey}.mp4` : neutralVideo;
+  const label = EMOTION_DISPLAY[normalizedKey]?.label || EMOTION_DISPLAY[DEFAULT_EMOTION_KEY].label;
 
   return {
     videoSrc,
-    fallbackVideoSrc: defaultVideoByCharacter,
-    label: emotionLabel,
+    fallbackVideoSrc: neutralVideo,
+    label,
   };
 }
 
 export const STAGE_MEDIA_MAPS = {
-  BASE_MOOD_VIDEO_MAP,
-  EMOTION_TO_MOOD_MAP,
-  CHARACTER_DEFAULT_VIDEO,
+  CHARACTER_NEUTRAL_VIDEO,
+  CHARACTER_VIDEO_PREFIX,
 };

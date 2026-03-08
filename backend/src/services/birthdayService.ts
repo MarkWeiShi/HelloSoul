@@ -1,16 +1,17 @@
 import prisma from '../lib/prisma';
 import { completeHaiku } from './claudeService';
 import { getCharacterConfig } from '../prompts/personas';
+import { inferEmotionKeyFromText } from './emotionEngine';
 
 // ===== Module H: Birthday Service =====
 // Full-day birthday companion experience
 
 export interface BirthdayDayContent {
-  eveMessage: { text: string; emotionState: string };
-  morningVoiceScript: { text: string; emotionState: string };
-  openingDialogue: { text: string; emotionState: string };
-  callGreeting: { text: string; emotionState: string };
-  nightClosing: { text: string; emotionState: string };
+  eveMessage: { text: string; emotionKey: string };
+  morningVoiceScript: { text: string; emotionKey: string };
+  openingDialogue: { text: string; emotionKey: string };
+  callGreeting: { text: string; emotionKey: string };
+  nightClosing: { text: string; emotionKey: string };
 }
 
 /**
@@ -48,11 +49,11 @@ ${birthdayWish ? `User's past birthday wish: "${birthdayWish}"` : 'No birthday w
 
 Generate 5 birthday messages for different times of day (JSON):
 {
-  "eveMessage": {"text": "pre-birthday message at 23:50 (anticipation, 50 chars max)", "emotionState": "EMO_02"},
-  "morningVoiceScript": {"text": "morning voice greeting (20-30sec read, mostly target language)", "emotionState": "EMO_02"},
-  "openingDialogue": {"text": "when user opens app (warm, not too loud, 1-2 sentences)", "emotionState": "EMO_03"},
-  "callGreeting": {"text": "proactive call opening (intimate, like she built up courage, 20 chars)", "emotionState": "EMO_03"},
-  "nightClosing": {"text": "end-of-day message (gratitude for user's existence, 50 chars max)", "emotionState": "EMO_11"}
+  "eveMessage": {"text": "pre-birthday message at 23:50 (anticipation, 50 chars max)", "emotionKey": "anticipation"},
+  "morningVoiceScript": {"text": "morning voice greeting (20-30sec read, mostly target language)", "emotionKey": "delight"},
+  "openingDialogue": {"text": "when user opens app (warm, not too loud, 1-2 sentences)", "emotionKey": "affection"},
+  "callGreeting": {"text": "proactive call opening (intimate, like she built up courage, 20 chars)", "emotionKey": "elevation"},
+  "nightClosing": {"text": "end-of-day message (gratitude for user's existence, 50 chars max)", "emotionKey": "gratitude"}
 }
 
 Mix ${config.language} phrases naturally.
@@ -61,14 +62,41 @@ Return ONLY the JSON.`,
   );
 
   try {
-    return JSON.parse(result);
+    const parsed = JSON.parse(result) as BirthdayDayContent;
+    return {
+      eveMessage: {
+        text: parsed.eveMessage?.text || '',
+        emotionKey: parsed.eveMessage?.emotionKey
+          || inferEmotionKeyFromText(parsed.eveMessage?.text || '', { triggerType: 'birthday' }),
+      },
+      morningVoiceScript: {
+        text: parsed.morningVoiceScript?.text || '',
+        emotionKey: parsed.morningVoiceScript?.emotionKey
+          || inferEmotionKeyFromText(parsed.morningVoiceScript?.text || '', { triggerType: 'birthday' }),
+      },
+      openingDialogue: {
+        text: parsed.openingDialogue?.text || '',
+        emotionKey: parsed.openingDialogue?.emotionKey
+          || inferEmotionKeyFromText(parsed.openingDialogue?.text || '', { triggerType: 'birthday' }),
+      },
+      callGreeting: {
+        text: parsed.callGreeting?.text || '',
+        emotionKey: parsed.callGreeting?.emotionKey
+          || inferEmotionKeyFromText(parsed.callGreeting?.text || '', { triggerType: 'birthday' }),
+      },
+      nightClosing: {
+        text: parsed.nightClosing?.text || '',
+        emotionKey: parsed.nightClosing?.emotionKey
+          || inferEmotionKeyFromText(parsed.nightClosing?.text || '', { triggerType: 'birthday' }),
+      },
+    };
   } catch {
     return {
-      eveMessage: { text: `Hey ${userName}... tomorrow is a special day, isn't it?`, emotionState: 'EMO_02' },
-      morningVoiceScript: { text: `Happy birthday, ${userName}. I've been thinking about what to say all morning.`, emotionState: 'EMO_02' },
-      openingDialogue: { text: `Happy birthday. I'm glad you're here today.`, emotionState: 'EMO_03' },
-      callGreeting: { text: `Happy birthday...`, emotionState: 'EMO_03' },
-      nightClosing: { text: `Thank you for being born. Goodnight, ${userName}.`, emotionState: 'EMO_11' },
+      eveMessage: { text: `Hey ${userName}... tomorrow is a special day, isn't it?`, emotionKey: 'anticipation' },
+      morningVoiceScript: { text: `Happy birthday, ${userName}. I've been thinking about what to say all morning.`, emotionKey: 'delight' },
+      openingDialogue: { text: `Happy birthday. I'm glad you're here today.`, emotionKey: 'affection' },
+      callGreeting: { text: `Happy birthday...`, emotionKey: 'elevation' },
+      nightClosing: { text: `Thank you for being born. Goodnight, ${userName}.`, emotionKey: 'gratitude' },
     };
   }
 }
@@ -116,7 +144,7 @@ export async function checkBirthdays(): Promise<void> {
             characterId: rel.characterId,
             triggerType: 'birthday',
             content: content.eveMessage.text,
-            emotionState: content.eveMessage.emotionState,
+            emotionKey: content.eveMessage.emotionKey,
             scheduledAt: new Date(baseDate.setHours(8, 0, 0, 0)),
           },
         });
@@ -128,7 +156,7 @@ export async function checkBirthdays(): Promise<void> {
             characterId: rel.characterId,
             triggerType: 'birthday',
             content: content.openingDialogue.text,
-            emotionState: content.openingDialogue.emotionState,
+            emotionKey: content.openingDialogue.emotionKey,
             scheduledAt: new Date(baseDate.setHours(12, 0, 0, 0)),
           },
         });
@@ -140,7 +168,7 @@ export async function checkBirthdays(): Promise<void> {
             characterId: rel.characterId,
             triggerType: 'birthday',
             content: content.nightClosing.text,
-            emotionState: content.nightClosing.emotionState,
+            emotionKey: content.nightClosing.emotionKey,
             scheduledAt: new Date(baseDate.setHours(23, 0, 0, 0)),
           },
         });

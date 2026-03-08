@@ -98,6 +98,10 @@ ${relationship.nickname ? `User's nickname: ${relationship.nickname}` : ''}`;
           content: m.content,
         }));
 
+      const latestAiEmotion = recentMessages.find(
+        (m) => m.role === 'ai' && m.emotionKey
+      );
+
       // Add current user message
       chatHistory.push({ role: 'user', content: message });
 
@@ -123,7 +127,10 @@ ${relationship.nickname ? `User's nickname: ${relationship.nickname}` : ''}`;
       }
 
       // Save AI message (parse emotion state from response)
-      const parsed = parseEmotionFromResponse(fullResponse);
+      const parsed = parseEmotionFromResponse(fullResponse, {
+        previousKey: latestAiEmotion?.emotionKey || null,
+        previousAt: latestAiEmotion?.createdAt || null,
+      });
       const cleanContent = parsed.reply || fullResponse;
 
       const aiMessage = await prisma.chatMessage.create({
@@ -132,8 +139,9 @@ ${relationship.nickname ? `User's nickname: ${relationship.nickname}` : ''}`;
           role: 'ai',
           type: 'text',
           content: cleanContent,
-          emotionState: parsed.emotionState.current,
-          gazeDirection: parsed.emotionState.gazeDirection,
+          emotionKey: parsed.emotion.key,
+          emotionEndKey: parsed.emotion.endKey || null,
+          gazeDirection: parsed.emotion.gazeDirection,
           sceneId: parsed.sceneId || null,
         },
       });
@@ -189,7 +197,7 @@ ${relationship.nickname ? `User's nickname: ${relationship.nickname}` : ''}`;
           type: 'done',
           messageId: aiMessage.id,
           intimacy: intimacyResult,
-          emotionState: parsed.emotionState,
+          emotion: parsed.emotion,
           sceneId: parsed.sceneId || null,
           innerVoice: innerVoice
             ? {

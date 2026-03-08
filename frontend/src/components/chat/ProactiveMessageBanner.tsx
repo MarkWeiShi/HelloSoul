@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, MessageCircle } from 'lucide-react';
 import type { ProactiveMessage } from '../../types/chat';
-import { EMOTION_DISPLAY, type EmotionCode } from '../../types/chat';
+import { EMOTION_DISPLAY, type EmotionKey } from '../../types/chat';
 
 interface ProactiveMessageBannerProps {
   message: ProactiveMessage | null;
@@ -31,8 +31,8 @@ export function ProactiveMessageBanner({
 }: ProactiveMessageBannerProps) {
   if (!message) return null;
 
-  const emotionEmoji = message.emotionState
-    ? EMOTION_DISPLAY[message.emotionState as EmotionCode]?.emoji || ''
+  const emotionEmoji = message.emotionKey
+    ? EMOTION_DISPLAY[message.emotionKey as EmotionKey]?.emoji || ''
     : '';
   const triggerIcon = TRIGGER_ICONS[message.triggerType] || '💬';
 

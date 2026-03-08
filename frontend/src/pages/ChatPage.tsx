@@ -3,7 +3,7 @@ import { EmotionAvatar } from '../components/EmotionAvatar';
 import { SceneBackground } from '../components/SceneBackground';
 
 export const ChatPage: React.FC = () => {
-  const [emotionState, setEmotionState] = useState('EMO_01');
+  const [emotionKey, setEmotionKey] = useState('contentment');
   const [gazeDirection, setGazeDirection] = useState('user');
   const [sceneId, setSceneId] = useState('cafe');
 
@@ -12,7 +12,7 @@ export const ChatPage: React.FC = () => {
     fetch('/api/chat/context')
       .then(res => res.json())
       .then(data => {
-        setEmotionState(data.emotionState);
+        setEmotionKey(data.emotion?.key || 'contentment');
         setGazeDirection(data.gazeDirection);
         setSceneId(data.sceneId);
       });
@@ -34,7 +34,7 @@ export const ChatPage: React.FC = () => {
     >
       <SceneBackground sceneId={sceneId} />
       <div style={{ position: 'absolute', left: '50%', top: '60%', transform: 'translate(-50%, -50%)', zIndex: 1 }}>
-        <EmotionAvatar emotionState={emotionState} gazeDirection={gazeDirection} />
+        <EmotionAvatar emotionKey={emotionKey} gazeDirection={gazeDirection} />
       </div>
       {/* ...rest of chat UI... */}
     </div>

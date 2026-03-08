@@ -1,11 +1,11 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import type { EmotionCode } from '../../types/chat';
+import { EMOTION_DISPLAY, type EmotionKey } from '../../types/chat';
 import type { CharacterId } from '../../types/persona';
 
 interface SceneBackgroundProps {
   sceneId?: string;
   characterId: CharacterId;
-  emotionCode?: EmotionCode;
+  emotionKey?: EmotionKey;
 }
 
 /**
@@ -67,15 +67,13 @@ const SCENE_GRADIENTS: Record<string, { gradient: string; particles?: string }> 
 };
 
 /** Emotion-influenced background color overlay */
-function getEmotionOverlay(emotion?: EmotionCode): string {
-  switch (emotion) {
-    case 'EMO_02': return 'rgba(255,215,0,0.03)';
-    case 'EMO_03': return 'rgba(255,182,193,0.04)';
-    case 'EMO_05': return 'rgba(221,160,221,0.04)';
-    case 'EMO_11': return 'rgba(230,230,250,0.05)';
-    case 'EMO_12': return 'rgba(25,25,60,0.1)';
-    default: return 'transparent';
-  }
+function getEmotionOverlay(emotion?: EmotionKey): string {
+  if (!emotion) return 'transparent';
+  const meta = EMOTION_DISPLAY[emotion];
+  if (!meta) return 'transparent';
+
+  if (meta.cluster === 'negative') return 'rgba(25,25,60,0.08)';
+  return 'rgba(255,215,160,0.04)';
 }
 
 const DEFAULT_GRADIENT = 'radial-gradient(ellipse at 50% 50%, #1E1B4B 0%, #0F0B1E 100%)';
@@ -83,11 +81,11 @@ const DEFAULT_GRADIENT = 'radial-gradient(ellipse at 50% 50%, #1E1B4B 0%, #0F0B1
 export function SceneBackground({
   sceneId,
   characterId,
-  emotionCode,
+  emotionKey,
 }: SceneBackgroundProps) {
   const scene = sceneId ? SCENE_GRADIENTS[sceneId] : null;
   const background = scene?.gradient || DEFAULT_GRADIENT;
-  const overlay = getEmotionOverlay(emotionCode);
+  const overlay = getEmotionOverlay(emotionKey);
 
   return (
     <AnimatePresence mode="wait">

@@ -1,11 +1,16 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import type { EmotionCode, GazeDirection, EmotionState } from '../../types/chat';
-import { EMOTION_DISPLAY } from '../../types/chat';
+import {
+  DEFAULT_EMOTION_KEY,
+  EMOTION_DISPLAY,
+  type Emotion,
+  type EmotionKey,
+  type GazeDirection,
+} from '../../types/chat';
 
 interface EmotionAvatarProps {
   flag: string;
   accentColor: string;
-  emotionState?: EmotionState;
+  emotion?: Emotion;
   size?: 'sm' | 'md' | 'lg';
 }
 
@@ -22,39 +27,43 @@ const GAZE_TRANSFORMS: Record<GazeDirection, string> = {
   down: 'translateX(0) translateY(2px)',
 };
 
+const ENERGETIC = new Set<EmotionKey>(['joy', 'enthusiasm', 'triumph', 'delight']);
+const PLAYFUL = new Set<EmotionKey>(['playfulness', 'amusement', 'curiosity']);
+const TENSE = new Set<EmotionKey>(['anger', 'rage', 'panic', 'frustration', 'anxiety', 'stress']);
+const SOFT = new Set<EmotionKey>(['sadness', 'grief', 'serenity', 'contentment', 'exhaustion']);
+
 /** Emotion-based animation configs */
-function getEmotionAnimation(emotion: EmotionCode) {
-  switch (emotion) {
-    case 'EMO_02': // happy
-      return { scale: [1, 1.08, 1], transition: { duration: 1.5, repeat: Infinity } };
-    case 'EMO_03': // shy
-      return { rotate: [-2, 2, -2], transition: { duration: 2, repeat: Infinity } };
-    case 'EMO_06': // surprised
-      return { scale: [1, 1.15, 1], transition: { duration: 0.6 } };
-    case 'EMO_07': // playful
-      return { y: [0, -4, 0], transition: { duration: 1, repeat: Infinity } };
-    case 'EMO_10': // pouting
-      return { x: [-1, 1, -1], transition: { duration: 0.5, repeat: Infinity } };
-    case 'EMO_12': // sleepy
-      return { rotate: [0, -5, 0], scale: [1, 0.97, 1], transition: { duration: 4, repeat: Infinity } };
-    case 'EMO_14': // daydreaming
-      return { y: [0, -2, 0], opacity: [1, 0.85, 1], transition: { duration: 3, repeat: Infinity } };
-    default:
-      return { scale: [1, 1.03, 1], transition: { duration: 3, repeat: Infinity } };
+function getEmotionAnimation(emotion: EmotionKey) {
+  if (ENERGETIC.has(emotion)) {
+    return { scale: [1, 1.1, 1], transition: { duration: 1.2, repeat: Infinity } };
   }
+
+  if (PLAYFUL.has(emotion)) {
+    return { y: [0, -4, 0], rotate: [-1, 1, -1], transition: { duration: 1.4, repeat: Infinity } };
+  }
+
+  if (TENSE.has(emotion)) {
+    return { x: [-1, 1, -1], transition: { duration: 0.6, repeat: Infinity } };
+  }
+
+  if (SOFT.has(emotion)) {
+    return { opacity: [1, 0.86, 1], scale: [1, 0.98, 1], transition: { duration: 3.5, repeat: Infinity } };
+  }
+
+  return { scale: [1, 1.03, 1], transition: { duration: 3, repeat: Infinity } };
 }
 
 export function EmotionAvatar({
   flag,
   accentColor,
-  emotionState,
+  emotion,
   size = 'md',
 }: EmotionAvatarProps) {
   const s = SIZE_MAP[size];
-  const emotion = emotionState?.current || 'EMO_01';
-  const gaze = emotionState?.gazeDirection || 'user';
-  const display = EMOTION_DISPLAY[emotion];
-  const animation = getEmotionAnimation(emotion);
+  const emotionKey = emotion?.key || DEFAULT_EMOTION_KEY;
+  const gaze = emotion?.gazeDirection || 'user';
+  const display = EMOTION_DISPLAY[emotionKey];
+  const animation = getEmotionAnimation(emotionKey);
 
   return (
     <div className="relative inline-block">
@@ -85,7 +94,7 @@ export function EmotionAvatar({
       {/* Emotion badge */}
       <AnimatePresence mode="wait">
         <motion.span
-          key={emotion}
+          key={emotionKey}
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0, opacity: 0 }}

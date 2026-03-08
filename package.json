@@ -12,6 +12,7 @@
     "build": "npm run build:backend && npm run build:frontend",
     "build:frontend": "cd frontend && npm run build",
     "build:backend": "cd backend && npm run build",
+    "sync:akari-videos": "node scripts/sync-akari-emotion-videos.mjs",
     "db:push": "cd backend && npx prisma db push",
     "db:studio": "cd backend && npx prisma studio"
   },

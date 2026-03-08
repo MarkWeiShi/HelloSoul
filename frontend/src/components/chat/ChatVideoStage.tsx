@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { resolveStageMedia } from '../../config/chatStageMedia';
-import type { EmotionCode } from '../../types/chat';
+import type { EmotionKey } from '../../types/chat';
 import type { CharacterId } from '../../types/persona';
 
 interface ChatVideoStageProps {
   characterId: CharacterId;
-  emotionCode?: EmotionCode;
+  emotionKey?: EmotionKey;
   characterColor: string;
 }
 
@@ -21,13 +21,13 @@ function hexToRgba(color: string, alpha: number): string {
 
 export function ChatVideoStage({
   characterId,
-  emotionCode,
+  emotionKey,
   characterColor,
 }: ChatVideoStageProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const media = useMemo(
-    () => resolveStageMedia(characterId, emotionCode),
-    [characterId, emotionCode]
+    () => resolveStageMedia(characterId, emotionKey),
+    [characterId, emotionKey]
   );
 
   const [activeSrc, setActiveSrc] = useState(media.videoSrc);

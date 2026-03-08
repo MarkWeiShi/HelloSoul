@@ -16,7 +16,7 @@ import { ChatVideoStage } from './ChatVideoStage';
 import { ProactiveMessageBanner } from './ProactiveMessageBanner';
 import { CHARACTERS } from '../../types/persona';
 import type { CharacterId } from '../../types/persona';
-import type { Message, EmotionState } from '../../types/chat';
+import type { Message, Emotion } from '../../types/chat';
 
 interface ChatInterfaceProps {
   characterId: CharacterId;
@@ -44,8 +44,8 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
   const quickReplies = ['教我怎么说？', '你现在在哪？', '想听你的声音'];
 
   // Get the latest emotion state from messages
-  const latestEmotion: EmotionState | undefined =
-    currentEmotion || messages.filter((m) => m.role === 'ai' && m.emotionState).slice(-1)[0]?.emotionState;
+  const latestEmotion: Emotion | undefined =
+    currentEmotion || messages.filter((m) => m.role === 'ai' && m.emotion).slice(-1)[0]?.emotion;
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -159,7 +159,7 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
               <EmotionAvatar
                 flag={character.flag}
                 accentColor={character.color}
-                emotionState={latestEmotion}
+                emotion={latestEmotion}
                 size="sm"
               />
               {/* Online indicator */}
@@ -209,7 +209,7 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
         <div className="flex-none chat-stage-shell">
           <ChatVideoStage
             characterId={characterId}
-            emotionCode={latestEmotion?.current}
+            emotionKey={latestEmotion?.key}
             characterColor={character.color}
           />
         </div>
