@@ -33,13 +33,24 @@ async function getColumns(tableName: string): Promise<Set<string>> {
 }
 
 async function backfillChatMessage() {
-  const columns = await getColumns('ChatMessage');
+  let columns = await getColumns('ChatMessage');
   const hasLegacy = columns.has('emotionState');
-  const hasTarget = columns.has('emotionKey');
+  let hasTarget = columns.has('emotionKey');
 
   if (!hasTarget) {
-    console.log('[backfill] ChatMessage.emotionKey column missing, skip.');
-    return false;
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "ChatMessage" ADD COLUMN "emotionKey" TEXT`
+    );
+    hasTarget = true;
+    columns = await getColumns('ChatMessage');
+    console.log('[backfill] Added ChatMessage.emotionKey column.');
+  }
+
+  if (!columns.has('emotionEndKey')) {
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "ChatMessage" ADD COLUMN "emotionEndKey" TEXT`
+    );
+    console.log('[backfill] Added ChatMessage.emotionEndKey column.');
   }
 
   if (!hasLegacy) {
@@ -64,13 +75,17 @@ async function backfillChatMessage() {
 }
 
 async function backfillProactiveMessage() {
-  const columns = await getColumns('ProactiveMessage');
+  let columns = await getColumns('ProactiveMessage');
   const hasLegacy = columns.has('emotionState');
-  const hasTarget = columns.has('emotionKey');
+  let hasTarget = columns.has('emotionKey');
 
   if (!hasTarget) {
-    console.log('[backfill] ProactiveMessage.emotionKey column missing, skip.');
-    return false;
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "ProactiveMessage" ADD COLUMN "emotionKey" TEXT`
+    );
+    hasTarget = true;
+    columns = await getColumns('ProactiveMessage');
+    console.log('[backfill] Added ProactiveMessage.emotionKey column.');
   }
 
   if (!hasLegacy) {
