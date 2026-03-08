@@ -6,6 +6,7 @@ import { TimelineEntry } from './TimelineEntry';
 import { VocabStickers } from './VocabStickers';
 import { GrowthReportCard } from './GrowthReportCard';
 import { ReflectionQuestionCard } from './ReflectionQuestionCard';
+import { PageLayout } from '../layout/PageLayout';
 
 interface JournalPageProps {
   characterId: string;
@@ -27,7 +28,7 @@ export function JournalPage({
   }, [fetchSummary, fetchTimeline]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0F0B1E] to-[#1E1B4B] pb-24">
+    <PageLayout className="bg-gradient-to-b from-[#0F0B1E] to-[#1E1B4B]">
       {/* Header */}
       <div className="journal-paper mx-4 mt-4 p-5 rounded-xl">
         <div className="flex items-center gap-2 mb-3">
@@ -142,7 +143,7 @@ export function JournalPage({
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </PageLayout>
   );
 }
 

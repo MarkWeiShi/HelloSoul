@@ -36,10 +36,9 @@ export async function apiLogin(email: string, password: string) {
 }
 
 export async function apiRegister(
-  email: string,
-  username: string,
-  password: string
+  params: { email: string; username: string; password: string }
 ) {
+  const { email, username, password } = params;
   return apiFetch<{ token: string; user: any }>('/auth/register', {
     method: 'POST',
     body: JSON.stringify({ email, username, password }),

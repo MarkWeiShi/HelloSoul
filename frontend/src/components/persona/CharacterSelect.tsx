@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { Volume2 } from 'lucide-react';
 import { CHARACTERS } from '../../types/persona';
 import type { CharacterId } from '../../types/persona';
+import { PageLayout } from '../layout/PageLayout';
 
 interface CharacterSelectProps {
   onSelect: (characterId: CharacterId) => void;
@@ -9,9 +10,9 @@ interface CharacterSelectProps {
 
 export function CharacterSelect({ onSelect }: CharacterSelectProps) {
   return (
-    <div className="min-h-screen bg-deep-space flex flex-col">
+    <PageLayout withNav={false} className="bg-deep-space flex flex-col">
       {/* Header */}
-      <div className="pt-16 px-6 text-center">
+      <div className="pt-6 px-4 sm:px-6 text-center">
         <h1 className="text-xl font-medium text-white">
           Choose your companion
         </h1>
@@ -21,7 +22,7 @@ export function CharacterSelect({ onSelect }: CharacterSelectProps) {
       </div>
 
       {/* Character cards — horizontal scroll */}
-      <div className="flex-1 flex items-center px-6 py-8">
+      <div className="flex-1 flex items-center px-4 sm:px-6 py-8">
         <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 w-full">
           {CHARACTERS.map((character, index) => (
             <motion.div
@@ -32,7 +33,7 @@ export function CharacterSelect({ onSelect }: CharacterSelectProps) {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => onSelect(character.id)}
-              className="snap-center flex-shrink-0 w-[280px] h-[380px] rounded-2xl overflow-hidden cursor-pointer relative"
+              className="snap-center flex-shrink-0 w-[clamp(220px,78vw,280px)] h-[clamp(320px,62vh,380px)] rounded-2xl overflow-hidden cursor-pointer relative"
               style={{
                 background: `linear-gradient(180deg, ${character.color}15 0%, ${character.color}05 100%)`,
                 border: `1px solid ${character.color}30`,
@@ -111,13 +112,13 @@ export function CharacterSelect({ onSelect }: CharacterSelectProps) {
       </div>
 
       {/* Progress dots */}
-      <div className="flex justify-center gap-2 pb-8">
+      <div className="flex justify-center gap-2 pb-6">
         <div className="w-6 h-1.5 rounded-full bg-white/50" />
         <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
         <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
         <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
         <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
       </div>
-    </div>
+    </PageLayout>
   );
 }

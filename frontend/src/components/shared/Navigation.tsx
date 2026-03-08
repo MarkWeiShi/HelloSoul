@@ -21,8 +21,8 @@ export function Navigation() {
   if (hiddenPaths.some((p) => location.pathname.startsWith(p))) return null;
 
   return (
-    <nav className="absolute bottom-0 left-0 right-0 z-40 bg-[#0F0B1E]/90 backdrop-blur-lg border-t border-white/5">
-      <div className="flex items-center justify-around py-2 pb-6">
+    <nav className="app-bottom-nav absolute bottom-0 left-0 right-0 z-40 bg-[#0F0B1E]/90 backdrop-blur-lg border-t border-white/5">
+      <div className="flex items-center justify-around pt-2 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
         {NAV_ITEMS.map(({ path, icon: Icon, label }) => {
           const active = location.pathname.startsWith(path);
           return (

@@ -7,6 +7,7 @@ import { FeedPost } from './FeedPost';
 import { CHARACTERS } from '../../types/persona';
 import type { CharacterId } from '../../types/persona';
 import { apiGenerateFeed } from '../../api/feed';
+import { PageLayout } from '../layout/PageLayout';
 
 export function LifestyleFeed() {
   const {
@@ -46,9 +47,9 @@ export function LifestyleFeed() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0F0B1E] to-[#1E1B4B] pb-24">
+    <PageLayout className="bg-gradient-to-b from-[#0F0B1E] to-[#1E1B4B]">
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-[#0F0B1E]/80 backdrop-blur-lg border-b border-white/5 px-4 py-3 pt-12">
+      <div className="sticky top-0 z-20 bg-[#0F0B1E]/80 backdrop-blur-lg border-b border-white/5 px-4 py-3 pt-2">
         <div className="flex items-center gap-2 mb-3">
           <Sparkles size={18} className="text-amber-400" />
           <h1 className="text-lg font-medium text-white">Lifestyle</h1>
@@ -128,7 +129,7 @@ export function LifestyleFeed() {
           </AnimatePresence>
         )}
       </div>
-    </div>
+    </PageLayout>
   );
 }
 

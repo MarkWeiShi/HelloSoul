@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { usePersonaStore } from '../../store/personaStore';
 import { GrowthReportCard } from '../memory/GrowthReportCard';
+import { PageLayout } from '../layout/PageLayout';
 
 export function GrowthReportPage() {
   const navigate = useNavigate();
@@ -20,9 +21,9 @@ export function GrowthReportPage() {
   const color = character.color;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0F0B1E] to-[#1E1B4B] pb-24">
+    <PageLayout withNav={false} className="bg-gradient-to-b from-[#0F0B1E] to-[#1E1B4B]">
       {/* Header */}
-      <div className="px-4 pt-12 pb-4">
+      <div className="px-4 pt-3 pb-4">
         <button
           onClick={() => navigate(-1)}
           className="p-2 -ml-2 mb-3 text-gray-400 hover:text-white transition"
@@ -60,6 +61,6 @@ export function GrowthReportPage() {
           month={month}
         />
       </div>
-    </div>
+    </PageLayout>
   );
 }

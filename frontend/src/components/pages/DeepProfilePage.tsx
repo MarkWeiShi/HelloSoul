@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDeepProfile } from '../../hooks/useDeepProfile';
 import { usePersonaStore } from '../../store/personaStore';
 import type { DeepProfileField } from '../../types/chat';
+import { PageLayout } from '../layout/PageLayout';
 
 export function DeepProfilePage() {
   const navigate = useNavigate();
@@ -60,9 +61,9 @@ export function DeepProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0F0B1E] to-[#1E1B4B] pb-24">
+    <PageLayout className="bg-gradient-to-b from-[#0F0B1E] to-[#1E1B4B]">
       {/* Header */}
-      <div className="relative px-4 pt-12 pb-6">
+      <div className="relative px-4 pt-3 pb-6">
         <div
           className="absolute inset-0 opacity-5"
           style={{
@@ -238,6 +239,6 @@ export function DeepProfilePage() {
           </p>
         )}
       </div>
-    </div>
+    </PageLayout>
   );
 }

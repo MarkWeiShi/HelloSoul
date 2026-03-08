@@ -34,6 +34,19 @@ export default function App() {
   const navigate = useNavigate();
   const character = selectedCharacterId ? getCharacter(selectedCharacterId) : null;
 
+  useEffect(() => {
+    const updateViewportHeight = () => {
+      document.documentElement.style.setProperty('--app-dvh', `${window.innerHeight}px`);
+    };
+
+    updateViewportHeight();
+    window.addEventListener('resize', updateViewportHeight);
+
+    return () => {
+      window.removeEventListener('resize', updateViewportHeight);
+    };
+  }, []);
+
   // Restore session on mount
   useEffect(() => {
     if (token) {
@@ -44,30 +57,8 @@ export default function App() {
   }, []);
 
   return (
-    <div
-      style={{
-        width: '100vw',
-        height: '100vh',
-        background: '#0F0B1E',
-        color: 'white',
-        fontFamily: 'DM Sans, sans-serif',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-          overflow: 'hidden',
-        }}
-      >
-      <div
-        style={{
-          width: '100%',
-          height: '100%',
-          maxWidth: '520px',
-          boxShadow: '0 0 32px #0008',
-          background: '#0F0B1E',
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
+    <div className="app-shell">
+      <div className="app-frame">
         <Routes>
           {/* Auth */}
           <Route path="/login" element={<AuthPage />} />

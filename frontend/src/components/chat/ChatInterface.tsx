@@ -12,7 +12,7 @@ import { LifestyleFeedPost } from './LifestyleFeedPost';
 import { MemoryRecallBubble } from './MemoryRecallBubble';
 import { LanguageTipCard } from './LanguageTipCard';
 import { EmotionAvatar } from './EmotionAvatar';
-import { SceneBackground } from './SceneBackground';
+import { ChatVideoStage } from './ChatVideoStage';
 import { ProactiveMessageBanner } from './ProactiveMessageBanner';
 import { CHARACTERS } from '../../types/persona';
 import type { CharacterId } from '../../types/persona';
@@ -28,9 +28,8 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
   const character = CHARACTERS.find((c) => c.id === characterId)!;
   const { messages, isStreaming, streamingContent, sendMessage, revealInnerVoice } =
     useChat();
-  const { relationship, currentLevel, progressPercent } =
-    useIntimacy(characterId);
-  const { currentEmotion, currentSceneId } = useEmotionStore();
+  const { currentLevel, progressPercent } = useIntimacy(characterId);
+  const { currentEmotion } = useEmotionStore();
   const {
     showBanner,
     currentBannerMessage,
@@ -76,32 +75,41 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
   };
 
   const renderMessage = (message: Message) => {
+    const alignClass = message.role === 'ai' ? 'justify-start' : 'justify-end';
+
     switch (message.type) {
       case 'voice':
         return (
-          <VoiceMessage
-            key={message.id}
-            message={message}
-            characterColor={character.color}
-          />
+          <div key={message.id} className={`flex ${alignClass} px-3 sm:px-5`}>
+            <VoiceMessage
+              message={message}
+              characterColor={character.color}
+            />
+          </div>
         );
       case 'lifestyle_post':
-        return <LifestyleFeedPost key={message.id} message={message} />;
+        return (
+          <div key={message.id} className={`flex ${alignClass} px-3 sm:px-5`}>
+            <LifestyleFeedPost message={message} />
+          </div>
+        );
       case 'memory_recall':
         return (
-          <MemoryRecallBubble
-            key={message.id}
-            message={message}
-            characterColor={character.color}
-          />
+          <div key={message.id} className={`flex ${alignClass} px-3 sm:px-5`}>
+            <MemoryRecallBubble
+              message={message}
+              characterColor={character.color}
+            />
+          </div>
         );
       case 'language_tip':
         return (
-          <LanguageTipCard
-            key={message.id}
-            message={message}
-            characterColor={character.color}
-          />
+          <div key={message.id} className={`flex ${alignClass} px-3 sm:px-5`}>
+            <LanguageTipCard
+              message={message}
+              characterColor={character.color}
+            />
+          </div>
         );
       default:
         return (
@@ -109,7 +117,6 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
             key={message.id}
             message={message}
             characterColor={character.color}
-            characterName={character.name}
             onRevealInnerVoice={revealInnerVoice}
           />
         );
@@ -117,14 +124,10 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
   };
 
   return (
-    <div className="flex flex-col h-full bg-surface relative pb-20">
-      {/* Dynamic scene background */}
-      <SceneBackground
-        sceneId={currentSceneId || undefined}
-        characterId={characterId}
-        emotionCode={latestEmotion?.current}
-      />
-
+    <div
+      className="flex flex-col h-full bg-surface relative"
+      style={{ paddingBottom: 'var(--akari-nav-offset)' }}
+    >
       {/* Proactive message banner */}
       <ProactiveMessageBanner
         message={currentBannerMessage}
@@ -145,7 +148,10 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
       />
 
       {/* Header */}
-      <div className="flex-shrink-0 relative z-10">
+      <div
+        className="flex-shrink-0 relative z-10"
+        style={{ paddingTop: 'calc(var(--akari-safe-top) + 2px)' }}
+      >
         <div className="flex items-center justify-between px-4 py-3">
           {/* Left: Avatar + status */}
           <div className="flex items-center gap-3">
@@ -198,73 +204,110 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
         </div>
       </div>
 
-      {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 relative z-10">
-        {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <div
-              className="w-16 h-16 rounded-full flex items-center justify-center text-2xl mb-3"
-              style={{ backgroundColor: `${character.color}22` }}
-            >
-              {character.flag}
-            </div>
-            <p className="text-sm text-gray-400">
-              Start a conversation with {character.name}
-            </p>
-            <p className="text-xs text-gray-500 mt-1">{character.tagline}</p>
-          </div>
-        )}
+      {/* Content area: 40% video stage + scrollable messages */}
+      <div className="flex-1 min-h-0 relative z-10 flex flex-col overflow-hidden">
+        <div className="flex-none chat-stage-shell">
+          <ChatVideoStage
+            characterId={characterId}
+            emotionCode={latestEmotion?.current}
+            characterColor={character.color}
+          />
+        </div>
 
-        {messages.map(renderMessage)}
+        <div
+          className="flex-1 min-h-0 overflow-y-auto akari-hide-scrollbar"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
+          <div className="flex flex-col gap-3 pt-3 pb-4">
+            {messages.length === 0 && (
+              <div className="flex flex-col items-center justify-start text-center px-6 pt-8 pb-4">
+                <div
+                  className="w-16 h-16 rounded-full flex items-center justify-center text-2xl mb-3"
+                  style={{ backgroundColor: `${character.color}22` }}
+                >
+                  {character.flag}
+                </div>
+                <p className="text-sm text-gray-400">
+                  Start a conversation with {character.name}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">{character.tagline}</p>
+              </div>
+            )}
 
-        {/* Streaming indicator */}
-        {isStreaming && streamingContent && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex justify-start mb-3"
-          >
-            <div
-              className="max-w-[75%] px-4 py-3 rounded-2xl rounded-tl-sm text-sm"
-              style={{
-                background: 'rgba(255,255,255,0.07)',
-                border: '1px solid rgba(255,255,255,0.1)',
-              }}
-            >
-              <p className="text-xs mb-1" style={{ color: character.color }}>
-                {character.name}
-              </p>
-              <p className="text-white/90">{streamingContent}</p>
-              <span className="inline-block w-1 h-4 ml-0.5 bg-white/50 animate-pulse" />
-            </div>
-          </motion.div>
-        )}
+            {messages.map(renderMessage)}
 
-        {isStreaming && !streamingContent && (
-          <div className="flex justify-start mb-3">
-            <div className="flex gap-1 px-4 py-3">
-              {[0, 1, 2].map((i) => (
-                <motion.div
-                  key={i}
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: character.color }}
-                  animate={{ opacity: [0.3, 1, 0.3] }}
-                  transition={{
-                    duration: 1,
-                    repeat: Infinity,
-                    delay: i * 0.2,
+            {/* Streaming indicator */}
+            {isStreaming && streamingContent && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex justify-start px-3 sm:px-5"
+                style={{ animation: 'fadeInUp 300ms ease-out both' }}
+              >
+                <div
+                  style={{
+                    maxWidth: '75%',
+                    padding: 'var(--akari-space-md) var(--akari-space-base)',
+                    borderRadius:
+                      'var(--akari-radius-xl) var(--akari-radius-xl) var(--akari-radius-xl) var(--akari-space-xs)',
+                    background: 'var(--akari-bubble-akari)',
+                    border: '1px solid var(--akari-border-subtle)',
+                    wordBreak: 'break-word',
                   }}
-                />
-              ))}
-            </div>
-          </div>
-        )}
+                >
+                  <p
+                    className="whitespace-pre-wrap"
+                    style={{
+                      color: 'var(--akari-text-primary)',
+                      fontSize: '15px',
+                      lineHeight: 1.5,
+                      margin: 0,
+                    }}
+                  >
+                    {streamingContent}
+                    <span className="inline-block w-1 h-4 ml-1 bg-white/50 animate-pulse" />
+                  </p>
+                </div>
+              </motion.div>
+            )}
 
-        <div ref={messagesEndRef} />
+            {isStreaming && !streamingContent && (
+              <div className="flex justify-start px-3 sm:px-5">
+                <div
+                  className="flex gap-1"
+                  style={{
+                    maxWidth: '75%',
+                    padding: 'var(--akari-space-md) var(--akari-space-base)',
+                    borderRadius:
+                      'var(--akari-radius-xl) var(--akari-radius-xl) var(--akari-radius-xl) var(--akari-space-xs)',
+                    background: 'var(--akari-bubble-akari)',
+                    border: '1px solid var(--akari-border-subtle)',
+                  }}
+                >
+                  {[0, 1, 2].map((i) => (
+                    <motion.div
+                      key={i}
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: character.color }}
+                      animate={{ opacity: [0.3, 1, 0.3] }}
+                      transition={{
+                        duration: 1,
+                        repeat: Infinity,
+                        delay: i * 0.2,
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
       </div>
 
       {/* Quick reply chips */}
-      <div className="flex-shrink-0 px-4 pb-1 relative z-10">
+      <div className="flex-shrink-0 px-4 pb-0.5 relative z-10">
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
           {quickReplies.map((reply) => (
             <button
@@ -282,7 +325,7 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
       </div>
 
       {/* Input area */}
-      <div className="flex-shrink-0 px-4 pb-4 relative z-10">
+      <div className="flex-shrink-0 px-4 pb-3 relative z-10">
         <div className="flex items-center gap-2 p-2 rounded-2xl bg-surface-light">
           <button
             onClick={() => setInput((prev) => prev || '给你发一张我现在的照片～')}

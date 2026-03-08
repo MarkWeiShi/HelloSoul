@@ -7,6 +7,7 @@ import { IntimacyProgress } from '../persona/IntimacyProgress';
 import { RelationshipPrefsPanel } from '../persona/RelationshipPrefs';
 import { PersonaBible } from '../persona/PersonaBible';
 import type { RelationshipPrefs } from '../../types/persona';
+import { PageLayout } from '../layout/PageLayout';
 
 export function ProfilePage() {
   const navigate = useNavigate();
@@ -18,18 +19,18 @@ export function ProfilePage() {
 
   if (!character) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#0F0B1E] to-[#1E1B4B] flex items-center justify-center">
+      <PageLayout className="bg-gradient-to-b from-[#0F0B1E] to-[#1E1B4B] flex items-center justify-center">
         <p className="text-gray-500 text-sm">No character selected</p>
-      </div>
+      </PageLayout>
     );
   }
 
   const color = character.color;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0F0B1E] to-[#1E1B4B] pb-24">
+    <PageLayout className="bg-gradient-to-b from-[#0F0B1E] to-[#1E1B4B]">
       {/* Header */}
-      <div className="relative pt-12 pb-6 px-4">
+      <div className="relative pt-3 pb-6 px-4">
         <div
           className="absolute inset-0 opacity-10"
           style={{
@@ -119,7 +120,7 @@ export function ProfilePage() {
       <div className="mx-4 mt-4">
         <PersonaBible characterId={character.id} expanded={bioExpanded} onToggle={() => setBioExpanded(!bioExpanded)} />
       </div>
-    </div>
+    </PageLayout>
   );
 }
 

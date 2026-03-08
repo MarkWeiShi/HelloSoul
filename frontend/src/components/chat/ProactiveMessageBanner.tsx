@@ -44,9 +44,10 @@ export function ProactiveMessageBanner({
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: -80, opacity: 0 }}
           transition={{ type: 'spring', damping: 20, stiffness: 200 }}
-          className="fixed top-0 left-0 right-0 z-50 px-4 pt-12 pb-3"
+          className="absolute top-0 left-0 right-0 z-50 px-4 pb-3"
           style={{
             background: `linear-gradient(to bottom, ${characterColor}20, transparent)`,
+            paddingTop: 'calc(var(--akari-safe-top) + var(--akari-space-sm))',
           }}
         >
           <div className="glass-card rounded-xl p-4 flex items-start gap-3">

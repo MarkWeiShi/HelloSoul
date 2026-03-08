@@ -7,14 +7,12 @@ import { speak, stopSpeaking, isTTSAvailable } from '../../utils/tts';
 interface MessageBubbleProps {
   message: Message;
   characterColor: string;
-  characterName: string;
   onRevealInnerVoice: (messageId: string) => void;
 }
 
 export function MessageBubble({
   message,
   characterColor,
-  characterName,
   onRevealInnerVoice,
 }: MessageBubbleProps) {
   const isAi = message.role === 'ai';
@@ -37,39 +35,42 @@ export function MessageBubble({
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`flex ${isAi ? 'justify-start' : 'justify-end'} mb-3`}
+      className={`flex ${isAi ? 'justify-start' : 'justify-end'} px-5`}
+      style={{ animation: 'fadeInUp 300ms ease-out both' }}
     >
-      <div className={`max-w-[75%] ${isAi ? '' : ''}`}>
-        {/* Character name */}
-        {isAi && (
-          <p
-            className="text-xs mb-1 ml-1"
-            style={{ color: characterColor }}
-          >
-            {characterName}
-          </p>
-        )}
-
-        {/* Message bubble */}
+      <div style={{ maxWidth: '75%' }}>
         <div
-          className={`px-4 py-3 rounded-2xl text-sm leading-relaxed relative ${
-            isAi
-              ? 'rounded-tl-sm'
-              : 'rounded-tr-sm'
-          }`}
+          className="relative"
           style={
             isAi
               ? {
-                  background: 'rgba(255,255,255,0.07)',
-                  border: '1px solid rgba(255,255,255,0.1)',
+                  padding: 'var(--akari-space-md) var(--akari-space-base)',
+                  borderRadius:
+                    'var(--akari-radius-xl) var(--akari-radius-xl) var(--akari-radius-xl) var(--akari-space-xs)',
+                  background: 'var(--akari-bubble-akari)',
+                  border: '1px solid var(--akari-border-subtle)',
+                  wordBreak: 'break-word',
                 }
               : {
-                  background: `${characterColor}22`,
-                  border: `1px solid ${characterColor}44`,
+                  padding: 'var(--akari-space-md) var(--akari-space-base)',
+                  borderRadius:
+                    'var(--akari-radius-xl) var(--akari-radius-xl) var(--akari-space-xs) var(--akari-radius-xl)',
+                  background: 'var(--akari-bubble-user)',
+                  border: '1px solid var(--akari-border-accent)',
+                  wordBreak: 'break-word',
                 }
           }
         >
-          <p className="text-white/90 whitespace-pre-wrap">
+          <p
+            className="whitespace-pre-wrap"
+            style={{
+              color: 'var(--akari-text-primary)',
+              fontSize: '15px',
+              lineHeight: 1.5,
+              fontWeight: 400,
+              margin: 0,
+            }}
+          >
             {message.content}
           </p>
 
@@ -97,15 +98,23 @@ export function MessageBubble({
               onReveal={() => onRevealInnerVoice(message.id)}
             />
           )}
-        </div>
 
-        {/* Timestamp */}
-        <p className={`text-[10px] text-gray-500 mt-1 ${isAi ? 'ml-1' : 'mr-1 text-right'}`}>
-          {new Date(message.timestamp).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
-        </p>
+          <span
+            style={{
+              display: 'block',
+              marginTop: 'var(--akari-space-xs)',
+              color: 'var(--akari-text-muted)',
+              fontSize: '11px',
+              lineHeight: 1,
+              textAlign: isAi ? 'left' : 'right',
+            }}
+          >
+            {new Date(message.timestamp).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </span>
+        </div>
       </div>
     </motion.div>
   );

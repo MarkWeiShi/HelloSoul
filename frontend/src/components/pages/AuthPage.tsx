@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Heart, Mail, Lock, User, ArrowRight } from 'lucide-react';
 import { apiLogin, apiRegister } from '../../api/base';
 import { useUserStore } from '../../store/userStore';
+import { PageLayout } from '../layout/PageLayout';
 
 export function AuthPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -24,7 +25,7 @@ export function AuthPage() {
       const data =
         mode === 'login'
           ? await apiLogin(email, password)
-          : await apiRegister(email, password, name);
+          : await apiRegister({ email, username: name, password });
 
       setAuth(data.token, data.user);
       navigate('/onboarding');
@@ -36,7 +37,10 @@ export function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0F0B1E] to-[#1E1B4B] flex flex-col items-center justify-center px-6">
+    <PageLayout
+      withNav={false}
+      className="bg-gradient-to-b from-[#0F0B1E] to-[#1E1B4B] flex flex-col items-center justify-center px-6"
+    >
       {/* Logo */}
       <motion.div
         initial={{ scale: 0 }}
@@ -136,6 +140,6 @@ export function AuthPage() {
           {mode === 'login' ? 'Sign Up' : 'Sign In'}
         </button>
       </p>
-    </div>
+    </PageLayout>
   );
 }
