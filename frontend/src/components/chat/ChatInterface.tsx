@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Phone, MoreHorizontal, Mic, Camera, Send } from 'lucide-react';
 import { useChat } from '../../hooks/useChat';
@@ -23,6 +24,7 @@ interface ChatInterfaceProps {
 }
 
 export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) {
+  const navigate = useNavigate();
   const character = CHARACTERS.find((c) => c.id === characterId)!;
   const { messages, isStreaming, streamingContent, sendMessage, revealInnerVoice } =
     useChat();
@@ -63,6 +65,14 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const handleStartCall = () => {
+    if (onStartCall) {
+      onStartCall();
+      return;
+    }
+    navigate('/call');
   };
 
   const renderMessage = (message: Message) => {
@@ -107,7 +117,7 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
   };
 
   return (
-    <div className="flex flex-col h-full bg-surface relative">
+    <div className="flex flex-col h-full bg-surface relative pb-20">
       {/* Dynamic scene background */}
       <SceneBackground
         sceneId={currentSceneId || undefined}
@@ -162,12 +172,15 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
           {/* Right: Actions */}
           <div className="flex items-center gap-3">
             <button
-              onClick={onStartCall}
+              onClick={handleStartCall}
               className="p-2 rounded-full hover:bg-white/5 transition-colors"
             >
               <Phone size={18} className="text-gray-400" />
             </button>
-            <button className="p-2 rounded-full hover:bg-white/5 transition-colors">
+            <button
+              onClick={() => navigate('/profile')}
+              className="p-2 rounded-full hover:bg-white/5 transition-colors"
+            >
               <MoreHorizontal size={18} className="text-gray-400" />
             </button>
           </div>
@@ -271,7 +284,10 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
       {/* Input area */}
       <div className="flex-shrink-0 px-4 pb-4 relative z-10">
         <div className="flex items-center gap-2 p-2 rounded-2xl bg-surface-light">
-          <button className="p-2 text-gray-500 hover:text-gray-300 transition-colors">
+          <button
+            onClick={() => setInput((prev) => prev || '给你发一张我现在的照片～')}
+            className="p-2 text-gray-500 hover:text-gray-300 transition-colors"
+          >
             <Camera size={18} />
           </button>
           <input
@@ -283,7 +299,10 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
             className="flex-1 bg-transparent text-sm text-white placeholder-gray-500 outline-none"
             disabled={isStreaming}
           />
-          <button className="p-2 text-gray-500 hover:text-gray-300 transition-colors">
+          <button
+            onClick={handleStartCall}
+            className="p-2 text-gray-500 hover:text-gray-300 transition-colors"
+          >
             <Mic size={18} />
           </button>
           <button

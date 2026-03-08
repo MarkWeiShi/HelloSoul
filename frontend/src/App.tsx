@@ -54,13 +54,14 @@ export default function App() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        overflow: 'auto',
-      }}
-    >
+          overflow: 'hidden',
+        }}
+      >
       <div
         style={{
-          width: '2868px',
-          height: '1320px',
+          width: '100%',
+          height: '100%',
+          maxWidth: '520px',
           boxShadow: '0 0 32px #0008',
           background: '#0F0B1E',
           position: 'relative',
@@ -87,7 +88,10 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <CharacterGate>
-                  <ChatInterface characterId={selectedCharacterId!} />
+                  <ChatInterface
+                    characterId={selectedCharacterId!}
+                    onStartCall={() => navigate('/call')}
+                  />
                 </CharacterGate>
               </ProtectedRoute>
             }

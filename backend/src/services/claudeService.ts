@@ -4,8 +4,14 @@ import Anthropic from '@anthropic-ai/sdk';
 let _anthropic: Anthropic | null = null;
 function getClient(): Anthropic {
   if (!_anthropic) {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const authToken = process.env.ANTHROPIC_AUTH_TOKEN;
+    const baseURL = process.env.ANTHROPIC_BASE_URL;
+
     _anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
+      ...(apiKey ? { apiKey } : {}),
+      ...(authToken ? { authToken } : {}),
+      ...(baseURL ? { baseURL } : {}),
     });
   }
   return _anthropic;
@@ -55,7 +61,7 @@ export interface StreamChatParams {
  */
 export async function* streamChat(params: StreamChatParams) {
   const stream = getClient().messages.stream({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-5-20250929',
     max_tokens: params.maxTokens ?? 500,
     system: params.systemPrompt,
     messages: params.messages,
@@ -99,7 +105,7 @@ export async function completeSonnet(
   maxTokens = 500
 ): Promise<string> {
   const result = await getClient().messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-5-20250929',
     max_tokens: maxTokens,
     ...(systemPrompt ? { system: systemPrompt } : {}),
     messages: [{ role: 'user', content: prompt }],

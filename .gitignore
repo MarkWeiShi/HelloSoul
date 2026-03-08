@@ -33,3 +33,4 @@ prisma/*.db-journal
 # Cache
 .cache/
 .parcel-cache/
+*.tsbuildinfo
