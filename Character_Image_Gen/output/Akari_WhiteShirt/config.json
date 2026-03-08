@@ -1,0 +1,10 @@
+{
+  "input_image": "/Users/markshi/HelloSoul/Character_Image_Gen/input/Chracter_Neutral/Akari_Neutral.png",
+  "prompt0": "full body portrait of a japanese high school girl, standing straight, hands behind her back, neutral facial expression, calm eyes, slight natural smile, long straight black hair with bangs, small cute hair clip on the side, soft natural makeup, brown eyes, slim body\n\nwearing a white short sleeve school shirt with a red ribbon bow tie, plaid pleated skirt, school uniform style\n\ncamera angle slightly above eye level, centered composition, head fully visible with space above hair, entire body visible\n\nultra realistic skin texture, detailed hair strands, studio lighting, soft shadows, high detail, photorealistic, 8k quality\n\ntransparent background, isolated character, PNG transparency, no background",
+  "output_dir": "/Users/markshi/HelloSoul/Character_Image_Gen/output",
+  "character_name": "Akari",
+  "skip_video": false,
+  "from_step": 1,
+  "only_step": 2,
+  "created_at": "2026-03-07T00:42:09.752055"
+}

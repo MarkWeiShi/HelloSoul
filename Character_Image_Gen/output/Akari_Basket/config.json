@@ -1,0 +1,10 @@
+{
+  "input_image": "/Users/markshi/HelloSoul/Character_Image_Gen/input/Chracter_Neutral/Akari_Neutral_Basket.png",
+  "prompt0": "A photorealistic full-body portrait of a young Asian woman with long black hair tied in a high ponytail with a cute white bear hair accessory, fair skin, gentle almond-shaped eyes, wearing a navy blue basketball jersey with number \"07\" in white and red trim, matching navy blue basketball shorts with red stripes, navy blue knee-high athletic socks, athletic sporty pose, neutral expression, transparent background, 8K quality, studio lighting",
+  "output_dir": "/Users/markshi/HelloSoul/Character_Image_Gen/output",
+  "character_name": "Akari_Basket",
+  "skip_video": false,
+  "from_step": 1,
+  "only_step": 2,
+  "created_at": "2026-03-07T17:33:10.133733"
+}
