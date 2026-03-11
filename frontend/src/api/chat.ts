@@ -1,4 +1,5 @@
-import { useUserStore } from '../store/userStore';
+﻿import { useUserStore } from '../store/userStore';
+import type { ChatMvpScenarioId } from '../config/privateChatMvp';
 import type { Emotion } from '../types/chat';
 
 /**
@@ -8,6 +9,7 @@ import type { Emotion } from '../types/chat';
 export async function streamChatMessage(
   characterId: string,
   message: string,
+  scenarioId: ChatMvpScenarioId,
   onDelta: (delta: string) => void
 ): Promise<{
   messageId: string;
@@ -30,7 +32,7 @@ export async function streamChatMessage(
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify({ characterId, message }),
+    body: JSON.stringify({ characterId, message, scenarioId }),
   });
 
   if (!response.ok) {
@@ -60,5 +62,12 @@ export async function streamChatMessage(
     }
   }
 
-  return metadata || { messageId: '', intimacy: { newScore: 0, newLevel: 0, levelChanged: false }, innerVoice: null, memoryRecall: null };
+  return (
+    metadata || {
+      messageId: '',
+      intimacy: { newScore: 0, newLevel: 0, levelChanged: false },
+      innerVoice: null,
+      memoryRecall: null,
+    }
+  );
 }

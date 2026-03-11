@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
+﻿import { motion, AnimatePresence } from 'framer-motion';
 import { EMOTION_DISPLAY, type EmotionKey } from '../../types/chat';
 import type { CharacterId } from '../../types/persona';
 
@@ -8,75 +8,64 @@ interface SceneBackgroundProps {
   emotionKey?: EmotionKey;
 }
 
-/**
- * Scene background definitions per character.
- * Each character has 10 scene IDs that map to CSS gradient backgrounds.
- */
 const SCENE_GRADIENTS: Record<string, { gradient: string; particles?: string }> = {
-  // Akari scenes (warm Japanese tones)
-  'akari_cafe': {
-    gradient: 'radial-gradient(ellipse at 30% 20%, #3D2B1F 0%, #1A0F08 50%, #0F0B1E 100%)',
-    particles: '☕',
+  cafe_counter: {
+    gradient: 'radial-gradient(ellipse at 30% 20%, #4A3122 0%, #1B120D 48%, #0F0B1E 100%)',
+    particles: '.',
   },
-  'akari_rooftop': {
-    gradient: 'radial-gradient(ellipse at 50% 0%, #FF6B3520 0%, #1E1B4B 40%, #0F0B1E 100%)',
-    particles: '🌆',
+  classroom: {
+    gradient: 'radial-gradient(ellipse at 50% 15%, #B7C9E230 0%, #243247 46%, #0F0B1E 100%)',
+    particles: '+',
   },
-  'akari_rain': {
-    gradient: 'radial-gradient(ellipse at 50% 50%, #2D3748 0%, #1A202C 50%, #0F0B1E 100%)',
-    particles: '🌧️',
+  cycling_street: {
+    gradient: 'radial-gradient(ellipse at 55% 0%, #FFB86B22 0%, #243B55 40%, #0F0B1E 100%)',
+    particles: '~',
   },
-  'akari_night': {
-    gradient: 'radial-gradient(ellipse at 50% 100%, #1E1B4B 0%, #0F0B1E 70%, #000 100%)',
-    particles: '🌙',
+  rainy_convenience: {
+    gradient: 'radial-gradient(ellipse at 40% 10%, #7CC6FF18 0%, #273244 44%, #0F0B1E 100%)',
+    particles: '|',
   },
-  'akari_sakura': {
-    gradient: 'radial-gradient(ellipse at 50% 30%, #FFB7C520 0%, #1E1B4B 40%, #0F0B1E 100%)',
-    particles: '🌸',
+  apartment_day: {
+    gradient: 'radial-gradient(ellipse at 45% 0%, #F2D8A718 0%, #2B2A4C 46%, #0F0B1E 100%)',
+    particles: '.',
   },
-
-  // Mina scenes (vibrant K-pop tones)
-  'mina_studio': {
-    gradient: 'radial-gradient(ellipse at 50% 50%, #FF69B415 0%, #1E1B4B 40%, #0F0B1E 100%)',
+  apartment_night: {
+    gradient: 'radial-gradient(ellipse at 50% 100%, #1F2755 0%, #0F0B1E 70%, #040308 100%)',
+    particles: '*',
   },
-  'mina_dorm': {
-    gradient: 'radial-gradient(ellipse at 30% 80%, #FFD70015 0%, #1E1B4B 40%, #0F0B1E 100%)',
+  old_bookstore: {
+    gradient: 'radial-gradient(ellipse at 35% 15%, #9A6B3C22 0%, #2A1B12 44%, #0F0B1E 100%)',
+    particles: '.',
   },
-  'mina_night_walk': {
-    gradient: 'radial-gradient(ellipse at 50% 0%, #E040FB15 0%, #1E1B4B 40%, #0F0B1E 100%)',
+  canal_walk: {
+    gradient: 'radial-gradient(ellipse at 50% 5%, #6BC7C820 0%, #20384B 44%, #0F0B1E 100%)',
+    particles: '~',
   },
-
-  // Sophie scenes (warm Parisian tones)
-  'sophie_studio': {
-    gradient: 'radial-gradient(ellipse at 50% 50%, #FFD70015 0%, #1E1B4B 40%, #0F0B1E 100%)',
+  shrine_festival: {
+    gradient: 'radial-gradient(ellipse at 50% 0%, #FF7A5922 0%, #432B40 42%, #0F0B1E 100%)',
+    particles: '*',
   },
-  'sophie_balcony': {
-    gradient: 'radial-gradient(ellipse at 50% 0%, #87CEEB15 0%, #1E1B4B 40%, #0F0B1E 100%)',
-  },
-  'sophie_rain': {
-    gradient: 'radial-gradient(ellipse at 50% 50%, #4A556815 0%, #1E1B4B 40%, #0F0B1E 100%)',
-  },
-
-  // Carlos scenes
-  'carlos_workshop': {
-    gradient: 'radial-gradient(ellipse at 50% 50%, #FF634720 0%, #1E1B4B 40%, #0F0B1E 100%)',
-  },
-  'carlos_terrace': {
-    gradient: 'radial-gradient(ellipse at 50% 0%, #FFA50020 0%, #1E1B4B 40%, #0F0B1E 100%)',
+  cherry_blossom: {
+    gradient: 'radial-gradient(ellipse at 50% 20%, #FFB7D520 0%, #3B2A4D 44%, #0F0B1E 100%)',
+    particles: '.',
   },
 };
 
-/** Emotion-influenced background color overlay */
+const CHARACTER_BASE_GRADIENTS: Record<CharacterId, string> = {
+  akari: 'radial-gradient(ellipse at 50% 20%, #FF6B9D18 0%, #2B2042 44%, #0F0B1E 100%)',
+  mina: 'radial-gradient(ellipse at 50% 20%, #7B68EE18 0%, #251F49 44%, #0F0B1E 100%)',
+  sophie: 'radial-gradient(ellipse at 50% 20%, #D4AF3718 0%, #352A1B 44%, #0F0B1E 100%)',
+  carlos: 'radial-gradient(ellipse at 50% 20%, #00CED118 0%, #173747 44%, #0F0B1E 100%)',
+};
+
 function getEmotionOverlay(emotion?: EmotionKey): string {
   if (!emotion) return 'transparent';
   const meta = EMOTION_DISPLAY[emotion];
   if (!meta) return 'transparent';
 
-  if (meta.cluster === 'negative') return 'rgba(25,25,60,0.08)';
-  return 'rgba(255,215,160,0.04)';
+  if (meta.cluster === 'negative') return 'rgba(20, 26, 52, 0.14)';
+  return 'rgba(255, 214, 164, 0.06)';
 }
-
-const DEFAULT_GRADIENT = 'radial-gradient(ellipse at 50% 50%, #1E1B4B 0%, #0F0B1E 100%)';
 
 export function SceneBackground({
   sceneId,
@@ -84,30 +73,26 @@ export function SceneBackground({
   emotionKey,
 }: SceneBackgroundProps) {
   const scene = sceneId ? SCENE_GRADIENTS[sceneId] : null;
-  const background = scene?.gradient || DEFAULT_GRADIENT;
+  const background = scene?.gradient || CHARACTER_BASE_GRADIENTS[characterId];
   const overlay = getEmotionOverlay(emotionKey);
 
   return (
     <AnimatePresence mode="wait">
       <motion.div
-        key={sceneId || 'default'}
+        key={sceneId || `${characterId}-default`}
         className="absolute inset-0 z-0 pointer-events-none"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        transition={{ duration: 1.5, ease: 'easeInOut' }}
+        transition={{ duration: 1.2, ease: 'easeInOut' }}
       >
-        {/* Base scene gradient */}
         <div className="absolute inset-0" style={{ background }} />
-
-        {/* Emotion-driven overlay */}
         <div className="absolute inset-0" style={{ backgroundColor: overlay }} />
 
-        {/* Optional ambient particles */}
         {scene?.particles && (
           <motion.div
-            className="absolute top-4 right-4 text-2xl opacity-20"
-            animate={{ y: [0, -8, 0], opacity: [0.15, 0.25, 0.15] }}
+            className="absolute top-4 right-4 text-xl opacity-20"
+            animate={{ y: [0, -8, 0], opacity: [0.08, 0.18, 0.08] }}
             transition={{ duration: 4, repeat: Infinity }}
           >
             {scene.particles}
@@ -117,3 +102,4 @@ export function SceneBackground({
     </AnimatePresence>
   );
 }
+

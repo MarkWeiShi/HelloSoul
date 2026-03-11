@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+﻿import { create } from 'zustand';
 import type { Message } from '../types/chat';
 
 interface ChatState {
@@ -26,7 +26,19 @@ export const useChatStore = create<ChatState>((set) => ({
   aiMessageCount: 0,
 
   setCharacter: (characterId) =>
-    set({ currentCharacterId: characterId, messages: [], aiMessageCount: 0 }),
+    set((state) => {
+      if (state.currentCharacterId === characterId) {
+        return state;
+      }
+
+      return {
+        currentCharacterId: characterId,
+        messages: [],
+        isStreaming: false,
+        streamingContent: '',
+        aiMessageCount: 0,
+      };
+    }),
 
   addMessage: (message) =>
     set((state) => ({
@@ -62,5 +74,10 @@ export const useChatStore = create<ChatState>((set) => ({
     })),
 
   clearMessages: () =>
-    set({ messages: [], streamingContent: '', aiMessageCount: 0 }),
+    set({
+      messages: [],
+      isStreaming: false,
+      streamingContent: '',
+      aiMessageCount: 0,
+    }),
 }));

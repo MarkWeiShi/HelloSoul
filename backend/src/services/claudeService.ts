@@ -1,15 +1,15 @@
-import Anthropic from '@anthropic-ai/sdk';
+﻿import Anthropic from '@anthropic-ai/sdk';
+import { PRIVATE_CHAT_SCENE_IDS } from '../config/privateChatMvp';
 import {
   DEFAULT_EMOTION_KEY,
   EMOTION_KEYS,
-  type EmotionKey,
   type EmotionPayload,
   type GazeDirection,
   normalizeEmotionKey,
   stabilizeEmotionKey,
 } from './emotionEngine';
 
-// Lazy singleton — constructed on first use so dotenv has time to load
+// Lazy singleton - constructed on first use so dotenv has time to load
 let _anthropic: Anthropic | null = null;
 function getClient(): Anthropic {
   if (!_anthropic) {
@@ -110,7 +110,7 @@ const EMOTION_INSTRUCTION = `
 <scene_suggest>scene_id or none</scene_suggest>
 
 Valid emotion_key values: ${EMOTION_KEYS.join(', ')}
-Scene IDs: cafe_counter, classroom, cycling_street, rainy_convenience, apartment_day, shrine_festival, cherry_blossom, apartment_night, old_bookstore, canal_walk, none
+Scene IDs: ${PRIVATE_CHAT_SCENE_IDS.join(', ')}, none
 Pick emotion that matches your TRUE feeling about what user said. Gaze: "user" when engaged, "away" when shy/thinking, "down" when vulnerable.`;
 
 /**
@@ -118,14 +118,17 @@ Pick emotion that matches your TRUE feeling about what user said. Gaze: "user" w
  */
 export function parseEmotionFromResponse(
   rawText: string,
-  fallback?: { previousKey?: string | null; previousAt?: Date | number | null }
+  fallback?: {
+    previousKey?: string | null;
+    previousAt?: Date | number | null;
+    defaultKey?: string | null;
+  }
 ): ChatResponseWithEmotion {
   const emotionMatch = rawText.match(/<emotion_key>(.*?)<\/emotion_key>/);
   const endEmotionMatch = rawText.match(/<emotion_key_end>(.*?)<\/emotion_key_end>/);
   const gazeMatch = rawText.match(/<gaze>(.*?)<\/gaze>/);
   const sceneMatch = rawText.match(/<scene_suggest>(.*?)<\/scene_suggest>/);
 
-  // Clean reply text (remove XML tags)
   const cleanReply = rawText
     .replace(/<emotion_key>.*?<\/emotion_key>/g, '')
     .replace(/<emotion_key_end>.*?<\/emotion_key_end>/g, '')
@@ -139,6 +142,7 @@ export function parseEmotionFromResponse(
     previousKey: fallback?.previousKey,
     previousAt: fallback?.previousAt,
     candidateKey: emotionMatch?.[1] || undefined,
+    defaultKey: fallback?.defaultKey,
   });
   const endKey = normalizeEmotionKey(endEmotionMatch?.[1] || undefined);
   const gazeValue = (gazeMatch?.[1] || 'user').trim().toLowerCase();

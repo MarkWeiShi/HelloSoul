@@ -1,7 +1,8 @@
-import { useCallback } from 'react';
-import { useChatStore } from '../store/chatStore';
-import { useEmotionStore } from '../store/emotionStore';
+﻿import { useCallback } from 'react';
+import type { ChatMvpScenarioId } from '../config/privateChatMvp';
 import { streamChatMessage } from '../api/chat';
+import { useEmotionStore } from '../store/emotionStore';
+import { useChatStore } from '../store/chatStore';
 import type { Message } from '../types/chat';
 import { v4 as uuid } from 'uuid';
 
@@ -20,10 +21,14 @@ export function useChat() {
   const { setEmotion, setScene } = useEmotionStore();
 
   const sendMessage = useCallback(
-    async (characterId: string, content: string) => {
+    async (
+      characterId: string,
+      content: string,
+      scenarioId: ChatMvpScenarioId
+    ) => {
       if (isStreaming || !content.trim()) return;
 
-      // Add user message
+      const requestCharacterId = characterId;
       const userMsg: Message = {
         id: uuid(),
         type: 'text',
@@ -34,7 +39,6 @@ export function useChat() {
       };
       addMessage(userMsg);
 
-      // Start streaming
       setStreaming(true);
       setStreamingContent('');
 
@@ -42,10 +46,19 @@ export function useChat() {
         const metadata = await streamChatMessage(
           characterId,
           content.trim(),
-          (delta) => appendStreamingContent(delta)
+          scenarioId,
+          (delta) => {
+            if (useChatStore.getState().currentCharacterId !== requestCharacterId) {
+              return;
+            }
+            appendStreamingContent(delta);
+          }
         );
 
-        // Create AI message from streamed content
+        if (useChatStore.getState().currentCharacterId !== requestCharacterId) {
+          return;
+        }
+
         const finalContent = useChatStore.getState().streamingContent;
         const aiMsg: Message = {
           id: metadata.messageId || uuid(),
@@ -73,7 +86,6 @@ export function useChat() {
         addMessage(aiMsg);
         setStreamingContent('');
 
-        // Update emotion & scene state
         if (metadata.emotion) {
           setEmotion(metadata.emotion);
         }
@@ -82,6 +94,9 @@ export function useChat() {
         }
       } catch (err) {
         console.error('Chat error:', err);
+        if (useChatStore.getState().currentCharacterId !== requestCharacterId) {
+          return;
+        }
         addMessage({
           id: uuid(),
           type: 'text',
@@ -91,10 +106,20 @@ export function useChat() {
           characterId,
         });
       } finally {
-        setStreaming(false);
+        if (useChatStore.getState().currentCharacterId === requestCharacterId) {
+          setStreaming(false);
+        }
       }
     },
-    [isStreaming, addMessage, setStreaming, setStreamingContent, appendStreamingContent]
+    [
+      isStreaming,
+      addMessage,
+      appendStreamingContent,
+      setEmotion,
+      setScene,
+      setStreaming,
+      setStreamingContent,
+    ]
   );
 
   return {

@@ -1,4 +1,4 @@
-import test from 'node:test';
+﻿import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   EMOTION_KEYS,
@@ -25,8 +25,8 @@ test('normalization accepts valid key and rejects unknown key', () => {
 
 test('metadata provides zh label and emoji', () => {
   const meta = getEmotionMeta('contentment');
-  assert.equal(meta.labelZh, '满足');
-  assert.equal(meta.emoji, '☺️');
+  assert.equal(meta.labelZh, '婊¤冻');
+  assert.equal(meta.emoji, '鈽猴笍');
 });
 
 test('stabilizer keeps previous key during cross-cluster cooldown', () => {
@@ -73,3 +73,15 @@ test('secondary text classifier detects anxiety and gratitude cues', () => {
   assert.equal(inferEmotionKeyFromText('I am super anxious and nervous tonight'), 'anxiety');
   assert.equal(inferEmotionKeyFromText('thank you so much, really appreciate you'), 'gratitude');
 });
+
+test('stabilizer honors provided default key when nothing valid exists', () => {
+  assert.equal(
+    stabilizeEmotionKey({
+      previousKey: 'not-exist',
+      candidateKey: 'invalid',
+      defaultKey: 'compassion',
+    }),
+    'compassion'
+  );
+});
+

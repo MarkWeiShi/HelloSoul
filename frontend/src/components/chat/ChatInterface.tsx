@@ -1,11 +1,17 @@
-import { useState, useRef, useEffect } from 'react';
+﻿import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Phone, MoreHorizontal, Mic, Camera, Send } from 'lucide-react';
 import { useChat } from '../../hooks/useChat';
 import { useIntimacy } from '../../hooks/useIntimacy';
 import { useProactive } from '../../hooks/useProactive';
+import {
+  CHAT_MVP_SCENARIOS,
+  getChatMvpCharacterUi,
+  type ChatMvpScenarioId,
+} from '../../config/privateChatMvp';
 import { useEmotionStore } from '../../store/emotionStore';
+import { useChatStore } from '../../store/chatStore';
 import { MessageBubble } from './MessageBubble';
 import { VoiceMessage } from './VoiceMessage';
 import { LifestyleFeedPost } from './LifestyleFeedPost';
@@ -14,6 +20,7 @@ import { LanguageTipCard } from './LanguageTipCard';
 import { EmotionAvatar } from './EmotionAvatar';
 import { ChatVideoStage } from './ChatVideoStage';
 import { ProactiveMessageBanner } from './ProactiveMessageBanner';
+import { SceneBackground as ChatSceneBackground } from './SceneBackground';
 import { CHARACTERS } from '../../types/persona';
 import type { CharacterId } from '../../types/persona';
 import type { Message, Emotion } from '../../types/chat';
@@ -26,10 +33,17 @@ interface ChatInterfaceProps {
 export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) {
   const navigate = useNavigate();
   const character = CHARACTERS.find((c) => c.id === characterId)!;
+  const chatMvp = getChatMvpCharacterUi(characterId);
   const { messages, isStreaming, streamingContent, sendMessage, revealInnerVoice } =
     useChat();
   const { currentLevel, progressPercent } = useIntimacy(characterId);
-  const { currentEmotion } = useEmotionStore();
+  const { currentEmotion, currentSceneId } = useEmotionStore((state) => ({
+    currentEmotion: state.currentEmotion,
+    currentSceneId: state.currentSceneId,
+  }));
+  const currentChatCharacterId = useChatStore((state) => state.currentCharacterId);
+  const resetEmotion = useEmotionStore((state) => state.reset);
+  const setChatCharacter = useChatStore((state) => state.setCharacter);
   const {
     showBanner,
     currentBannerMessage,
@@ -39,22 +53,35 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
   } = useProactive();
 
   const [input, setInput] = useState('');
+  const [activeScenarioId, setActiveScenarioId] = useState<ChatMvpScenarioId>('first_chat');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const quickReplies = ['教我怎么说？', '你现在在哪？', '想听你的声音'];
+  useEffect(() => {
+    if (currentChatCharacterId !== characterId) {
+      setChatCharacter(characterId);
+      resetEmotion();
+      setActiveScenarioId('first_chat');
+    }
+  }, [characterId, currentChatCharacterId, resetEmotion, setChatCharacter]);
 
-  // Get the latest emotion state from messages
+  const activeScenarioMeta = CHAT_MVP_SCENARIOS.find(
+    (scenario) => scenario.id === activeScenarioId
+  )!;
+  const activeScenario = chatMvp.scenarios[activeScenarioId];
+  const quickReplies = activeScenario.recommendedQuickReplies;
+
   const latestEmotion: Emotion | undefined =
     currentEmotion || messages.filter((m) => m.role === 'ai' && m.emotion).slice(-1)[0]?.emotion;
 
-  // Auto-scroll on new messages
+  const activeSceneId = currentSceneId || activeScenario.defaultSceneId;
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingContent]);
 
   const handleSend = () => {
     if (input.trim() && !isStreaming) {
-      sendMessage(characterId, input);
+      sendMessage(characterId, input, activeScenarioId);
       setInput('');
     }
   };
@@ -81,10 +108,7 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
       case 'voice':
         return (
           <div key={message.id} className={`flex ${alignClass} px-3 sm:px-5`}>
-            <VoiceMessage
-              message={message}
-              characterColor={character.color}
-            />
+            <VoiceMessage message={message} characterColor={character.color} />
           </div>
         );
       case 'lifestyle_post':
@@ -96,19 +120,13 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
       case 'memory_recall':
         return (
           <div key={message.id} className={`flex ${alignClass} px-3 sm:px-5`}>
-            <MemoryRecallBubble
-              message={message}
-              characterColor={character.color}
-            />
+            <MemoryRecallBubble message={message} characterColor={character.color} />
           </div>
         );
       case 'language_tip':
         return (
           <div key={message.id} className={`flex ${alignClass} px-3 sm:px-5`}>
-            <LanguageTipCard
-              message={message}
-              characterColor={character.color}
-            />
+            <LanguageTipCard message={message} characterColor={character.color} />
           </div>
         );
       default:
@@ -128,11 +146,16 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
       className="flex flex-col h-full bg-surface relative"
       style={{ paddingBottom: 'var(--akari-nav-offset)' }}
     >
-      {/* Proactive message banner */}
+      <ChatSceneBackground
+        sceneId={activeSceneId}
+        characterId={characterId}
+        emotionKey={latestEmotion?.key}
+      />
+
       <ProactiveMessageBanner
         message={currentBannerMessage}
         show={showBanner}
-        characterName={character.name}
+        characterName={chatMvp.displayName}
         characterColor={character.color}
         onDismiss={() => {
           if (currentBannerMessage) markRead(currentBannerMessage.id);
@@ -140,20 +163,18 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
         }}
         onReply={() => {
           if (currentBannerMessage) {
-            setInput(currentBannerMessage.content.slice(0, 30) + '…');
+            setInput(currentBannerMessage.content.slice(0, 30) + '...');
             markReply(currentBannerMessage.id);
             dismissBanner();
           }
         }}
       />
 
-      {/* Header */}
       <div
         className="flex-shrink-0 relative z-10"
         style={{ paddingTop: 'calc(var(--akari-safe-top) + 2px)' }}
       >
         <div className="flex items-center justify-between px-4 py-3">
-          {/* Left: Avatar + status */}
           <div className="flex items-center gap-3">
             <div className="relative">
               <EmotionAvatar
@@ -162,20 +183,18 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
                 emotion={latestEmotion}
                 size="sm"
               />
-              {/* Online indicator */}
               <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 rounded-full border-2 border-surface z-20" />
             </div>
             <div>
-              <h2 className="text-sm font-medium">{character.name}</h2>
+              <h2 className="text-sm font-medium">{chatMvp.displayName}</h2>
               {currentLevel && (
                 <p className="text-[10px]" style={{ color: character.color }}>
-                  {currentLevel.nameJa} Lv.{currentLevel.level} 💕
+                  {currentLevel.name} Lv.{currentLevel.level}
                 </p>
               )}
             </div>
           </div>
 
-          {/* Right: Actions */}
           <div className="flex items-center gap-3">
             <button
               onClick={handleStartCall}
@@ -192,7 +211,6 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
           </div>
         </div>
 
-        {/* Intimacy progress bar */}
         <div className="h-0.5 bg-white/5">
           <motion.div
             className="h-full"
@@ -204,7 +222,6 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
         </div>
       </div>
 
-      {/* Content area: 40% video stage + scrollable messages */}
       <div className="flex-1 min-h-0 relative z-10 flex flex-col overflow-hidden">
         <div className="flex-none chat-stage-shell">
           <ChatVideoStage
@@ -227,16 +244,13 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
                 >
                   {character.flag}
                 </div>
-                <p className="text-sm text-gray-400">
-                  Start a conversation with {character.name}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">{character.tagline}</p>
+                <p className="text-sm text-gray-300">{activeScenario.openingLine}</p>
+                <p className="text-xs text-gray-500 mt-2">{activeScenarioMeta.summary}</p>
               </div>
             )}
 
             {messages.map(renderMessage)}
 
-            {/* Streaming indicator */}
             {isStreaming && streamingContent && (
               <motion.div
                 initial={{ opacity: 0 }}
@@ -306,17 +320,38 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
         </div>
       </div>
 
-      {/* Quick reply chips */}
+      <div className="flex-shrink-0 px-4 pt-2 relative z-10">
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          {CHAT_MVP_SCENARIOS.map((scenario) => {
+            const isActive = scenario.id === activeScenarioId;
+            return (
+              <button
+                key={scenario.id}
+                onClick={() => setActiveScenarioId(scenario.id)}
+                className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors"
+                style={{
+                  borderColor: isActive ? `${character.color}88` : 'rgba(255,255,255,0.1)',
+                  backgroundColor: isActive ? `${character.color}22` : 'rgba(255,255,255,0.02)',
+                  color: isActive ? character.color : '#9CA3AF',
+                }}
+              >
+                {scenario.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="flex-shrink-0 px-4 pb-0.5 relative z-10">
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
           {quickReplies.map((reply) => (
             <button
               key={reply}
               onClick={() => {
-                setInput(reply);
-                sendMessage(characterId, reply);
+                setInput('');
+                sendMessage(characterId, reply, activeScenarioId);
               }}
-              className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full border border-white/10 text-gray-400 hover:border-white/20 hover:text-gray-300 transition-colors"
+              className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full border border-white/10 text-gray-300 hover:border-white/20 hover:text-white transition-colors"
             >
               {reply}
             </button>
@@ -324,11 +359,10 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
         </div>
       </div>
 
-      {/* Input area */}
       <div className="flex-shrink-0 px-4 pb-3 relative z-10">
         <div className="flex items-center gap-2 p-2 rounded-2xl bg-surface-light">
           <button
-            onClick={() => setInput((prev) => prev || '给你发一张我现在的照片～')}
+            onClick={() => setInput((prev) => prev || 'I want to show you something from today.')}
             className="p-2 text-gray-500 hover:text-gray-300 transition-colors"
           >
             <Camera size={18} />
@@ -338,7 +372,7 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={`Message ${character.name}...`}
+            placeholder={`Message ${chatMvp.displayName}...`}
             className="flex-1 bg-transparent text-sm text-white placeholder-gray-500 outline-none"
             disabled={isStreaming}
           />
