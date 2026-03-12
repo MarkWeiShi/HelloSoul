@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { getOrCreateRelationship } from '../services/intimacyService';
+import { mapStoredJournalEntryToClientEntry } from '../services/chatExperienceService';
 import prisma from '../lib/prisma';
 
 const router = Router();
@@ -76,7 +77,9 @@ router.get('/:characterId/journal', authenticate, async (req: AuthRequest, res) 
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
-    res.json({ entries });
+    res.json({
+      entries: entries.map((entry) => mapStoredJournalEntryToClientEntry(entry)),
+    });
   } catch (err) {
     console.error('[relationship] Journal error:', err);
     res.status(500).json({ error: 'Failed to get journal' });

@@ -33,3 +33,12 @@ test('parseEmotionFromResponse uses provided default key when no prior emotion e
   assert.equal(parsed.emotion.key, 'compassion');
   assert.equal(parsed.emotion.gazeDirection, 'user');
 });
+
+test('parseEmotionFromResponse strips memory recall tags from the visible reply', () => {
+  const parsed = parseEmotionFromResponse(
+    'I still remember that rainy cafe.<memory_recall>User loves rainy cafes.</memory_recall>\n<emotion_key>trust</emotion_key>'
+  );
+
+  assert.equal(parsed.reply, 'I still remember that rainy cafe.');
+  assert.equal(parsed.emotion.key, 'trust');
+});

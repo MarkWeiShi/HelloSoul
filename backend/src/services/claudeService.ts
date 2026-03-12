@@ -134,6 +134,7 @@ export function parseEmotionFromResponse(
     .replace(/<emotion_key_end>.*?<\/emotion_key_end>/g, '')
     .replace(/<emotion>.*?<\/emotion>/g, '')
     .replace(/<emotion_end>.*?<\/emotion_end>/g, '')
+    .replace(/<memory_recall>.*?<\/memory_recall>/g, '')
     .replace(/<gaze>.*?<\/gaze>/g, '')
     .replace(/<scene_suggest>.*?<\/scene_suggest>/g, '')
     .trim();

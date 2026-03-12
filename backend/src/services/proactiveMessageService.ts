@@ -2,6 +2,11 @@ import prisma from '../lib/prisma';
 import { completeHaiku } from './claudeService';
 import { getCharacterConfig } from '../prompts/personas';
 import { inferEmotionKeyFromText } from './emotionEngine';
+import {
+  buildProactivePreferenceContext,
+  getEarliestProactiveSendAt,
+  moveDateOutOfSilentHours,
+} from './relationshipPreferenceService';
 
 // ===== Module H: Proactive Message Service =====
 // "She's thinking of you — not waiting for you to open the app"
@@ -80,11 +85,22 @@ export async function generateProactiveMessage(
 ): Promise<{ content: string; emotionKey: string }> {
   const config = getCharacterConfig(characterId);
   const promptFn = TRIGGER_PROMPTS[triggerType] || TRIGGER_PROMPTS.thought_of_you;
+  const relationship = await prisma.relationship.findUnique({
+    where: {
+      userId_characterId: { userId, characterId },
+    },
+    select: {
+      contactFreq: true,
+      teachingMode: true,
+      emotionalDepth: true,
+    },
+  });
 
   const content = await completeHaiku(
     `You are ${config.name}. ${config.systemPrompt.slice(0, 200)}...
 
 ${promptFn(context)}
+${buildProactivePreferenceContext(relationship || {})}
 
 Language: Mix English with occasional ${config.language} phrases naturally.
 Keep it short and natural.`,
@@ -115,8 +131,21 @@ export async function scheduleProactiveMessage(
     triggerType,
     context
   );
+  const relationship = await prisma.relationship.findUnique({
+    where: {
+      userId_characterId: { userId, characterId },
+    },
+    select: {
+      contactFreq: true,
+      teachingMode: true,
+      emotionalDepth: true,
+      lastProactiveAt: true,
+      silentHoursStart: true,
+      silentHoursEnd: true,
+    },
+  });
 
-  const sendTime = await calculateOptimalSendTime(userId);
+  const sendTime = await calculateOptimalSendTime(userId, relationship || undefined);
 
   const msg = await prisma.proactiveMessage.create({
     data: {
@@ -153,10 +182,23 @@ export async function getPendingProactiveMessages(userId?: string) {
  * Mark a proactive message as sent.
  */
 export async function markProactiveMessageSent(messageId: string) {
-  return prisma.proactiveMessage.update({
+  const sentAt = new Date();
+  const message = await prisma.proactiveMessage.update({
     where: { id: messageId },
-    data: { sentAt: new Date() },
+    data: { sentAt },
   });
+
+  await prisma.relationship.updateMany({
+    where: {
+      userId: message.userId,
+      characterId: message.characterId,
+    },
+    data: {
+      lastProactiveAt: sentAt,
+    },
+  });
+
+  return message;
 }
 
 /**
@@ -183,12 +225,15 @@ export async function markProactiveMessageReplied(messageId: string) {
  * Calculate optimal send time based on user's historical activity.
  * Falls back to reasonable defaults.
  */
-async function calculateOptimalSendTime(userId: string): Promise<Date> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { timezone: true },
-  });
-
+async function calculateOptimalSendTime(
+  userId: string,
+  preferences?: {
+    contactFreq?: string | null;
+    lastProactiveAt?: Date | null;
+    silentHoursStart?: number | null;
+    silentHoursEnd?: number | null;
+  }
+): Promise<Date> {
   // Find most active hour from recent messages
   const recentMessages = await prisma.chatMessage.findMany({
     where: {
@@ -221,7 +266,7 @@ async function calculateOptimalSendTime(userId: string): Promise<Date> {
       target.setDate(target.getDate() + 1);
     }
 
-    return target;
+    return applyProactiveTimingPreferences(target, preferences);
   }
 
   // Default: schedule for 2 hours from now or 18:00
@@ -232,7 +277,31 @@ async function calculateOptimalSendTime(userId: string): Promise<Date> {
     target.setHours(10, 0, 0, 0);
   }
 
-  return target;
+  return applyProactiveTimingPreferences(target, preferences);
+}
+
+function applyProactiveTimingPreferences(
+  target: Date,
+  preferences?: {
+    contactFreq?: string | null;
+    lastProactiveAt?: Date | null;
+    silentHoursStart?: number | null;
+    silentHoursEnd?: number | null;
+  }
+): Date {
+  const now = new Date();
+  const earliest = getEarliestProactiveSendAt({
+    now,
+    lastProactiveAt: preferences?.lastProactiveAt,
+    contactFreq: preferences?.contactFreq,
+  });
+  const adjusted = target < earliest ? new Date(earliest) : new Date(target);
+
+  return moveDateOutOfSilentHours(
+    adjusted,
+    preferences?.silentHoursStart,
+    preferences?.silentHoursEnd
+  );
 }
 
 /**

@@ -1,4 +1,5 @@
 ﻿import { Router } from 'express';
+import { randomUUID } from 'node:crypto';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { rateLimit } from '../middleware/rateLimit';
 import {
@@ -22,9 +23,48 @@ import { assessEmotionalTrigger, recordEmotionalTrigger } from '../services/emot
 import { buildPrivateChatScenarioContext } from '../services/privateChatMvpService';
 import { normalizePrivateChatSceneId } from '../config/privateChatMvp';
 import { getCharacterConfig } from '../prompts/personas';
+import {
+  CHAT_PROMPT_VERSION,
+  buildChatDonePayload,
+  deriveAutomaticChatArtifacts,
+  mapStoredMessageToClientMessage,
+} from '../services/chatExperienceService';
+import { buildRelationshipPreferenceContext } from '../services/relationshipPreferenceService';
 import prisma from '../lib/prisma';
 
 const router = Router();
+
+router.get(
+  '/history/:characterId',
+  authenticate,
+  async (req: AuthRequest, res) => {
+    try {
+      const userId = req.userId!;
+      const { characterId } = req.params;
+      const relationship = await getOrCreateRelationship(userId, characterId);
+
+      const storedMessages = await prisma.chatMessage.findMany({
+        where: { relationshipId: relationship.id },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      });
+
+      const messages = storedMessages
+        .reverse()
+        .map((message) =>
+          mapStoredMessageToClientMessage({ ...message, characterId })
+        );
+
+      res.json({
+        promptVersion: CHAT_PROMPT_VERSION,
+        messages,
+      });
+    } catch (err) {
+      console.error('[chat] History error:', err);
+      res.status(500).json({ error: 'Failed to load chat history' });
+    }
+  }
+);
 
 // POST /api/chat - SSE streaming chat
 router.post(
@@ -35,6 +75,8 @@ router.post(
     try {
       const { characterId, message, scenarioId } = req.body;
       const userId = req.userId!;
+      const traceId = randomUUID();
+      const warnings: string[] = [];
 
       if (!characterId || !message) {
         return res.status(400).json({ error: 'characterId and message required' });
@@ -59,6 +101,11 @@ router.post(
 
       let systemPrompt = config.systemPrompt;
       systemPrompt += `\n\n${scenarioContext.prompt}`;
+      systemPrompt += `\n\n${buildRelationshipPreferenceContext({
+        contactFreq: relationship.contactFreq,
+        teachingMode: relationship.teachingMode,
+        emotionalDepth: relationship.emotionalDepth,
+      })}`;
 
       if (memoryContext) {
         systemPrompt += `\n\n=== MEMORIES ABOUT THIS USER ===\n${memoryContext}`;
@@ -72,8 +119,9 @@ Naturally weave this into your response if relevant. Don't force it. Mark with <
       let deepContextHint: string | null = null;
       try {
         deepContextHint = await buildDeepContextInjection(userId, characterId, message);
-      } catch {
-        // Skip deep context if it fails.
+      } catch (err) {
+        warnings.push('deep_context_unavailable');
+        console.warn(`[chat:${traceId}] Deep context build failed:`, err);
       }
 
       if (deepContextHint) {
@@ -136,21 +184,6 @@ ${relationship.nickname ? `User's nickname: ${relationship.nickname}` : ''}`;
         normalizePrivateChatSceneId(parsed.sceneId) || scenarioContext.defaultSceneId;
       const cleanContent = parsed.reply || fullResponse;
 
-      const aiMessage = await prisma.chatMessage.create({
-        data: {
-          relationshipId: relationship.id,
-          role: 'ai',
-          type: 'text',
-          content: cleanContent,
-          emotionKey: parsed.emotion.key,
-          emotionEndKey: parsed.emotion.endKey || null,
-          gazeDirection: parsed.emotion.gazeDirection,
-          sceneId: resolvedSceneId,
-        },
-      });
-
-      const intimacyResult = await addIntimacy(relationship.id, 'text_message');
-
       const shouldInnerVoice = shouldTriggerInnerVoice(relationship.totalMessages + 1);
       let innerVoice = null;
 
@@ -159,21 +192,109 @@ ${relationship.nickname ? `User's nickname: ${relationship.nickname}` : ''}`;
           innerVoice = await generateInnerVoice(
             characterId,
             chatHistory.map((m) => `${m.role}: ${m.content}`).join('\n'),
-            fullResponse,
+            cleanContent,
             relationship.intimacyScore
           );
-          await logInnerVoice(relationship.id, aiMessage.id, innerVoice);
         } catch (err) {
-          console.error('[chat] Inner voice generation failed:', err);
+          warnings.push('inner_voice_unavailable');
+          console.error(`[chat:${traceId}] Inner voice generation failed:`, err);
         }
       }
 
-      extractMemories(relationship.id, message, fullResponse).catch((err) =>
-        console.error('[chat] Memory extraction failed:', err)
+      const donePayloadWithoutId = buildChatDonePayload({
+        messageId: '',
+        reply: cleanContent,
+        intimacy: { newScore: relationship.intimacyScore, newLevel: relationship.intimacyLevel, levelChanged: false },
+        emotion: parsed.emotion,
+        sceneId: resolvedSceneId,
+        innerVoice: innerVoice
+          ? {
+              text: innerVoice.text,
+              language: innerVoice.language,
+              translation: innerVoice.translation,
+              ...(innerVoice.audioUrl ? { audioUrl: innerVoice.audioUrl } : {}),
+            }
+          : null,
+        memoryRecallHit: recall
+          ? { content: recall.content, date: recall.createdAt }
+          : null,
+        warnings,
+        traceId,
+      });
+
+      const aiMessage = await prisma.chatMessage.create({
+        data: {
+          relationshipId: relationship.id,
+          role: 'ai',
+          type: 'text',
+          content: cleanContent,
+          metadata: JSON.stringify({
+            ...donePayloadWithoutId,
+            messageId: undefined,
+            scenarioId: scenarioContext.scenarioId,
+          }),
+          emotionKey: parsed.emotion.key,
+          emotionEndKey: parsed.emotion.endKey || null,
+          gazeDirection: parsed.emotion.gazeDirection,
+          sceneId: resolvedSceneId,
+        },
+      });
+
+      if (innerVoice) {
+        await logInnerVoice(relationship.id, aiMessage.id, innerVoice);
+      }
+
+      const intimacyResult = await addIntimacy(relationship.id, 'text_message');
+
+      const artifacts = deriveAutomaticChatArtifacts({
+        characterId,
+        totalMessagesBefore: relationship.totalMessages,
+        intimacyBefore: {
+          score: relationship.intimacyScore,
+          level: relationship.intimacyLevel,
+        },
+        intimacyAfter: {
+          score: intimacyResult.newScore,
+          level: intimacyResult.newLevel,
+          levelChanged: intimacyResult.levelChanged,
+        },
+        latestReply: cleanContent,
+      });
+
+      if (artifacts.milestones.length || artifacts.journalEntries.length) {
+        prisma.$transaction([
+          ...artifacts.milestones.map((milestone) =>
+            prisma.milestone.create({
+              data: {
+                relationshipId: relationship.id,
+                type: milestone.type,
+                title: milestone.title,
+                description: milestone.description,
+                intimacyAtTime: milestone.intimacyAtTime,
+              },
+            })
+          ),
+          ...artifacts.journalEntries.map((entry) =>
+            prisma.journalEntry.create({
+              data: {
+                userId,
+                characterId,
+                entryType: entry.entryType,
+                title: entry.title,
+                content: JSON.stringify(entry.content),
+                stickerIds: JSON.stringify(entry.stickerIds),
+              },
+            })
+          ),
+        ]).catch((err) => console.error(`[chat:${traceId}] Automatic artifact write failed:`, err));
+      }
+
+      extractMemories(relationship.id, message, cleanContent).catch((err) =>
+        console.error(`[chat:${traceId}] Memory extraction failed:`, err)
       );
 
-      extractDeepInsights(userId, characterId, message, fullResponse).catch((err) =>
-        console.error('[chat] Deep profile extraction failed:', err)
+      extractDeepInsights(userId, characterId, message, cleanContent).catch((err) =>
+        console.error(`[chat:${traceId}] Deep profile extraction failed:`, err)
       );
 
       const recentMsgs = chatHistory.slice(-6).map((m) => ({
@@ -185,31 +306,35 @@ ${relationship.nickname ? `User's nickname: ${relationship.nickname}` : ''}`;
           if (assessment.priority !== 'none') {
             await recordEmotionalTrigger(relationship.id, assessment);
             console.log(
-              `[chat] Emotional trigger detected: ${assessment.priority} - ${assessment.reason}`
+              `[chat:${traceId}] Emotional trigger detected: ${assessment.priority} - ${assessment.reason}`
             );
           }
         })
-        .catch((err) => console.error('[chat] Emotional trigger assessment failed:', err));
+        .catch((err) => console.error(`[chat:${traceId}] Emotional trigger assessment failed:`, err));
+
+      const donePayload = buildChatDonePayload({
+        messageId: aiMessage.id,
+        reply: cleanContent,
+        intimacy: intimacyResult,
+        emotion: parsed.emotion,
+        sceneId: resolvedSceneId,
+        innerVoice: innerVoice
+          ? {
+              text: innerVoice.text,
+              language: innerVoice.language,
+              translation: innerVoice.translation,
+              ...(innerVoice.audioUrl ? { audioUrl: innerVoice.audioUrl } : {}),
+            }
+          : null,
+        memoryRecallHit: recall
+          ? { content: recall.content, date: recall.createdAt }
+          : null,
+        warnings,
+        traceId,
+      });
 
       res.write(
-        `data: ${JSON.stringify({
-          type: 'done',
-          messageId: aiMessage.id,
-          intimacy: intimacyResult,
-          emotion: parsed.emotion,
-          sceneId: resolvedSceneId,
-          innerVoice: innerVoice
-            ? {
-                text: innerVoice.text,
-                language: innerVoice.language,
-                translation: innerVoice.translation,
-                audioUrl: innerVoice.audioUrl,
-              }
-            : null,
-          memoryRecall: recall
-            ? { content: recall.content, date: recall.createdAt }
-            : null,
-        })}\n\n`
+        `data: ${JSON.stringify({ type: 'done', ...donePayload })}\n\n`
       );
 
       res.end();

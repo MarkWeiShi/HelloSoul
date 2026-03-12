@@ -34,8 +34,15 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
   const navigate = useNavigate();
   const character = CHARACTERS.find((c) => c.id === characterId)!;
   const chatMvp = getChatMvpCharacterUi(characterId);
-  const { messages, isStreaming, streamingContent, sendMessage, revealInnerVoice } =
-    useChat();
+  const {
+    messages,
+    isStreaming,
+    historyLoading,
+    streamingContent,
+    sendMessage,
+    loadHistory,
+    revealInnerVoice,
+  } = useChat();
   const { currentLevel, progressPercent } = useIntimacy(characterId);
   const { currentEmotion, currentSceneId } = useEmotionStore((state) => ({
     currentEmotion: state.currentEmotion,
@@ -64,6 +71,12 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
     }
   }, [characterId, currentChatCharacterId, resetEmotion, setChatCharacter]);
 
+  useEffect(() => {
+    if (currentChatCharacterId === characterId) {
+      loadHistory(characterId);
+    }
+  }, [characterId, currentChatCharacterId, loadHistory]);
+
   const activeScenarioMeta = CHAT_MVP_SCENARIOS.find(
     (scenario) => scenario.id === activeScenarioId
   )!;
@@ -80,7 +93,7 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
   }, [messages, streamingContent]);
 
   const handleSend = () => {
-    if (input.trim() && !isStreaming) {
+    if (input.trim() && !isStreaming && !historyLoading) {
       sendMessage(characterId, input, activeScenarioId);
       setInput('');
     }
@@ -246,6 +259,11 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
                 </div>
                 <p className="text-sm text-gray-300">{activeScenario.openingLine}</p>
                 <p className="text-xs text-gray-500 mt-2">{activeScenarioMeta.summary}</p>
+                {historyLoading && (
+                  <p className="text-[11px] text-gray-500 mt-3">
+                    Loading your recent conversation...
+                  </p>
+                )}
               </div>
             )}
 
@@ -349,9 +367,12 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
               key={reply}
               onClick={() => {
                 setInput('');
-                sendMessage(characterId, reply, activeScenarioId);
+                if (!historyLoading) {
+                  sendMessage(characterId, reply, activeScenarioId);
+                }
               }}
               className="flex-shrink-0 text-xs px-3 py-1.5 rounded-full border border-white/10 text-gray-300 hover:border-white/20 hover:text-white transition-colors"
+              disabled={historyLoading || isStreaming}
             >
               {reply}
             </button>
@@ -372,9 +393,13 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={`Message ${chatMvp.displayName}...`}
+            placeholder={
+              historyLoading
+                ? `Loading ${chatMvp.displayName}'s chat...`
+                : `Message ${chatMvp.displayName}...`
+            }
             className="flex-1 bg-transparent text-sm text-white placeholder-gray-500 outline-none"
-            disabled={isStreaming}
+            disabled={isStreaming || historyLoading}
           />
           <button
             onClick={handleStartCall}
@@ -384,7 +409,7 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
           </button>
           <button
             onClick={handleSend}
-            disabled={!input.trim() || isStreaming}
+            disabled={!input.trim() || isStreaming || historyLoading}
             className="p-2 rounded-full transition-colors disabled:opacity-30"
             style={{ color: character.color }}
           >

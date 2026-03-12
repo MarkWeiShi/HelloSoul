@@ -61,6 +61,22 @@ export function MessageBubble({
                 }
           }
         >
+          {isAi && message.memoryRef && (
+            <div
+              className="mb-2 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px]"
+              style={{
+                backgroundColor: `${characterColor}14`,
+                border: `1px solid ${characterColor}30`,
+                color: characterColor,
+              }}
+            >
+              <span>Remembered</span>
+              <span>
+                {new Date(message.memoryRef.date).toLocaleDateString()}
+              </span>
+            </div>
+          )}
+
           <p
             className="whitespace-pre-wrap"
             style={{
@@ -97,6 +113,19 @@ export function MessageBubble({
               revealed={message.innerVoiceRevealed || false}
               onReveal={() => onRevealInnerVoice(message.id)}
             />
+          )}
+
+          {isAi && message.relationshipProgress && (
+            <div
+              className="mt-2 inline-flex items-center rounded-full px-2 py-1 text-[10px]"
+              style={{
+                backgroundColor: `${characterColor}12`,
+                color: characterColor,
+                border: `1px solid ${characterColor}26`,
+              }}
+            >
+              Relationship advanced to {message.relationshipProgress.label}
+            </div>
           )}
 
           <span

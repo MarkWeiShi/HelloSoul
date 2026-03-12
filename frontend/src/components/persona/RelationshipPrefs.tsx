@@ -6,7 +6,7 @@ import type { RelationshipPrefs } from '../../types/persona';
 interface RelationshipPrefsProps {
   prefs: RelationshipPrefs;
   characterColor: string;
-  onSave: (prefs: RelationshipPrefs) => void;
+  onSave: (prefs: RelationshipPrefs) => Promise<boolean>;
 }
 
 export function RelationshipPrefsPanel({
@@ -16,6 +16,7 @@ export function RelationshipPrefsPanel({
 }: RelationshipPrefsProps) {
   const [local, setLocal] = useState<RelationshipPrefs>(prefs);
   const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const update = (key: keyof RelationshipPrefs, value: string) => {
     setLocal((p) => ({ ...p, [key]: value }));
@@ -65,12 +66,21 @@ export function RelationshipPrefsPanel({
           animate={{ opacity: 1, y: 0 }}
           className="w-full py-2.5 rounded-lg text-sm font-medium text-white"
           style={{ backgroundColor: characterColor }}
-          onClick={() => {
-            onSave(local);
-            setDirty(false);
+          disabled={saving}
+          onClick={async () => {
+            if (saving) return;
+            setSaving(true);
+            try {
+              const saved = await onSave(local);
+              if (saved) {
+                setDirty(false);
+              }
+            } finally {
+              setSaving(false);
+            }
           }}
         >
-          Save Preferences
+          {saving ? 'Saving...' : 'Save Preferences'}
         </motion.button>
       )}
     </div>
