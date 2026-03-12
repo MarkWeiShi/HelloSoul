@@ -25,8 +25,8 @@ test('normalization accepts valid key and rejects unknown key', () => {
 
 test('metadata provides zh label and emoji', () => {
   const meta = getEmotionMeta('contentment');
-  assert.equal(meta.labelZh, '婊¤冻');
-  assert.equal(meta.emoji, '鈽猴笍');
+  assert.equal(meta.labelZh, '满足');
+  assert.equal(meta.emoji, '☺️');
 });
 
 test('stabilizer keeps previous key during cross-cluster cooldown', () => {
@@ -84,4 +84,3 @@ test('stabilizer honors provided default key when nothing valid exists', () => {
     'compassion'
   );
 });
-
