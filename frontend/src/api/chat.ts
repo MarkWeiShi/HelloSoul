@@ -1,5 +1,8 @@
-import { useUserStore } from '../store/userStore';
-import type { Emotion } from '../types/chat';
+﻿import { useUserStore } from '../store/userStore';
+import type { ChatMvpScenarioId } from '../config/privateChatMvp';
+import { apiFetch } from './base';
+import type { ChatDonePayload, ChatHistoryMessage } from '../types/chat';
+import { extractSseDataFrames } from './chatStream';
 
 /**
  * Stream chat messages via SSE.
@@ -8,20 +11,9 @@ import type { Emotion } from '../types/chat';
 export async function streamChatMessage(
   characterId: string,
   message: string,
+  scenarioId: ChatMvpScenarioId,
   onDelta: (delta: string) => void
-): Promise<{
-  messageId: string;
-  intimacy: { newScore: number; newLevel: number; levelChanged: boolean };
-  innerVoice: {
-    text: string;
-    language: string;
-    translation: string;
-    audioUrl?: string;
-  } | null;
-  memoryRecall: { content: string; date: string } | null;
-  emotion?: Emotion;
-  sceneId?: string;
-}> {
+): Promise<ChatDonePayload> {
   const token = useUserStore.getState().token;
 
   const response = await fetch('/api/chat', {
@@ -30,7 +22,7 @@ export async function streamChatMessage(
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify({ characterId, message }),
+    body: JSON.stringify({ characterId, message, scenarioId }),
   });
 
   if (!response.ok) {
@@ -39,26 +31,57 @@ export async function streamChatMessage(
 
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
-  let metadata: any = null;
+  let metadata: ChatDonePayload | null = null;
+  let buffer = '';
 
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
 
-    const text = decoder.decode(value, { stream: true });
-    const lines = text.split('\n');
+    buffer += decoder.decode(value, { stream: true });
+    const parsed = extractSseDataFrames(buffer);
+    buffer = parsed.rest;
 
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue;
-      const data = JSON.parse(line.slice(6));
-
+    for (const event of parsed.events) {
+      const data = JSON.parse(event);
       if (data.type === 'delta') {
         onDelta(data.content);
       } else if (data.type === 'done') {
-        metadata = data;
+        metadata = data as ChatDonePayload;
       }
     }
   }
 
-  return metadata || { messageId: '', intimacy: { newScore: 0, newLevel: 0, levelChanged: false }, innerVoice: null, memoryRecall: null };
+  buffer += decoder.decode();
+  if (buffer.trim()) {
+    const parsed = extractSseDataFrames(`${buffer}\n\n`);
+    for (const event of parsed.events) {
+      const data = JSON.parse(event);
+      if (data.type === 'delta') {
+        onDelta(data.content);
+      } else if (data.type === 'done') {
+        metadata = data as ChatDonePayload;
+      }
+    }
+  }
+
+  return (
+    metadata || {
+      messageId: '',
+      reply: '',
+      intimacy: { newScore: 0, newLevel: 0, levelChanged: false },
+      innerVoice: null,
+      memoryRecallHit: null,
+      promptVersion: 'unknown',
+      warnings: [],
+      traceId: '',
+    }
+  );
+}
+
+export async function apiGetChatHistory(characterId: string) {
+  return apiFetch<{
+    promptVersion: string;
+    messages: ChatHistoryMessage[];
+  }>(`/chat/history/${characterId}`);
 }

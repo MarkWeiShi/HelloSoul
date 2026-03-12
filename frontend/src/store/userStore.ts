@@ -22,6 +22,7 @@ export const useUserStore = create<UserState>((set) => ({
   logout: () => {
     localStorage.removeItem('linglove_token');
     localStorage.removeItem('linglove_user');
+    localStorage.removeItem('linglove_selected_character');
     set({ token: null, user: null, isAuthenticated: false });
   },
 }));

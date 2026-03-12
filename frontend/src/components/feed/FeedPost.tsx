@@ -80,7 +80,7 @@ export function FeedPost({ post, onLike, onReply, onSave }: FeedPostProps) {
   };
 
   return (
-    <div className="glass-card rounded-xl overflow-hidden">
+    <div data-testid="feed-post" className="glass-card rounded-xl overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-3 p-3">
         <div
@@ -246,6 +246,9 @@ export function FeedPost({ post, onLike, onReply, onSave }: FeedPostProps) {
       <div className="flex items-center gap-4 px-3 pb-2">
         <button
           onClick={handleLike}
+          type="button"
+          data-testid="feed-like-button"
+          aria-pressed={liked}
           className="flex items-center gap-1 transition"
         >
           <Heart
@@ -259,13 +262,21 @@ export function FeedPost({ post, onLike, onReply, onSave }: FeedPostProps) {
 
         <button
           onClick={() => setShowReply(!showReply)}
+          type="button"
+          data-testid="feed-reply-toggle"
           className="flex items-center gap-1 text-gray-500"
         >
           <MessageCircle size={18} />
           <span className="text-xs">Reply</span>
         </button>
 
-        <button onClick={handleSave} className="ml-auto">
+        <button
+          type="button"
+          onClick={handleSave}
+          data-testid="feed-save-button"
+          aria-pressed={saved}
+          className="ml-auto"
+        >
           {saved ? (
             <BookmarkCheck size={18} style={{ color }} />
           ) : (
@@ -297,12 +308,15 @@ export function FeedPost({ post, onLike, onReply, onSave }: FeedPostProps) {
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleReply()}
+                  data-testid="feed-reply-input"
                   placeholder="Say something..."
                   className="flex-1 bg-white/5 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 outline-none focus:ring-1"
                   style={{ focusRingColor: color } as any}
                 />
                 <button
                   onClick={handleReply}
+                  type="button"
+                  data-testid="feed-reply-send"
                   className="px-3 py-2 rounded-lg text-xs font-medium text-white"
                   style={{ backgroundColor: color }}
                 >

@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+﻿import { create } from 'zustand';
 import type { Message } from '../types/chat';
 
 interface ChatState {
@@ -6,9 +6,11 @@ interface ChatState {
   isStreaming: boolean;
   streamingContent: string;
   currentCharacterId: string | null;
+  historyHydrated: boolean;
   aiMessageCount: number;
 
   setCharacter: (characterId: string) => void;
+  setMessages: (messages: Message[]) => void;
   addMessage: (message: Message) => void;
   updateLastAiMessage: (content: string) => void;
   setStreaming: (streaming: boolean) => void;
@@ -23,10 +25,31 @@ export const useChatStore = create<ChatState>((set) => ({
   isStreaming: false,
   streamingContent: '',
   currentCharacterId: null,
+  historyHydrated: false,
   aiMessageCount: 0,
 
   setCharacter: (characterId) =>
-    set({ currentCharacterId: characterId, messages: [], aiMessageCount: 0 }),
+    set((state) => {
+      if (state.currentCharacterId === characterId) {
+        return state;
+      }
+
+      return {
+        currentCharacterId: characterId,
+        messages: [],
+        isStreaming: false,
+        streamingContent: '',
+        historyHydrated: false,
+        aiMessageCount: 0,
+      };
+    }),
+
+  setMessages: (messages) =>
+    set({
+      messages,
+      historyHydrated: true,
+      aiMessageCount: messages.filter((message) => message.role === 'ai').length,
+    }),
 
   addMessage: (message) =>
     set((state) => ({
@@ -62,5 +85,11 @@ export const useChatStore = create<ChatState>((set) => ({
     })),
 
   clearMessages: () =>
-    set({ messages: [], streamingContent: '', aiMessageCount: 0 }),
+    set({
+      messages: [],
+      isStreaming: false,
+      streamingContent: '',
+      historyHydrated: false,
+      aiMessageCount: 0,
+    }),
 }));

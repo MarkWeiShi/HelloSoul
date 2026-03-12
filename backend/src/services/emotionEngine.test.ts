@@ -1,4 +1,4 @@
-import test from 'node:test';
+﻿import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   EMOTION_KEYS,
@@ -72,4 +72,15 @@ test('stabilizer falls back to previous valid key then default', () => {
 test('secondary text classifier detects anxiety and gratitude cues', () => {
   assert.equal(inferEmotionKeyFromText('I am super anxious and nervous tonight'), 'anxiety');
   assert.equal(inferEmotionKeyFromText('thank you so much, really appreciate you'), 'gratitude');
+});
+
+test('stabilizer honors provided default key when nothing valid exists', () => {
+  assert.equal(
+    stabilizeEmotionKey({
+      previousKey: 'not-exist',
+      candidateKey: 'invalid',
+      defaultKey: 'compassion',
+    }),
+    'compassion'
+  );
 });

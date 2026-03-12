@@ -2,6 +2,17 @@ import { create } from 'zustand';
 import type { CharacterId, Relationship } from '../types/persona';
 import { CHARACTERS } from '../types/persona';
 
+const SELECTED_CHARACTER_KEY = 'linglove_selected_character';
+
+function readSelectedCharacter(): CharacterId | null {
+  if (typeof localStorage === 'undefined') return null;
+
+  const value = localStorage.getItem(SELECTED_CHARACTER_KEY);
+  return value === 'akari' || value === 'mina' || value === 'sophie' || value === 'carlos'
+    ? value
+    : null;
+}
+
 interface PersonaState {
   selectedCharacterId: CharacterId | null;
   relationships: Record<string, Relationship>;
@@ -12,10 +23,15 @@ interface PersonaState {
 }
 
 export const usePersonaStore = create<PersonaState>((set, get) => ({
-  selectedCharacterId: null,
+  selectedCharacterId: readSelectedCharacter(),
   relationships: {},
 
-  selectCharacter: (id) => set({ selectedCharacterId: id }),
+  selectCharacter: (id) => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(SELECTED_CHARACTER_KEY, id);
+    }
+    set({ selectedCharacterId: id });
+  },
 
   setRelationship: (characterId, relationship) =>
     set((state) => ({

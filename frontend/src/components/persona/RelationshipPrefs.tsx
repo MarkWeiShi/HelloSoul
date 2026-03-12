@@ -6,7 +6,7 @@ import type { RelationshipPrefs } from '../../types/persona';
 interface RelationshipPrefsProps {
   prefs: RelationshipPrefs;
   characterColor: string;
-  onSave: (prefs: RelationshipPrefs) => void;
+  onSave: (prefs: RelationshipPrefs) => Promise<boolean>;
 }
 
 export function RelationshipPrefsPanel({
@@ -16,6 +16,7 @@ export function RelationshipPrefsPanel({
 }: RelationshipPrefsProps) {
   const [local, setLocal] = useState<RelationshipPrefs>(prefs);
   const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const update = (key: keyof RelationshipPrefs, value: string) => {
     setLocal((p) => ({ ...p, [key]: value }));
@@ -34,6 +35,7 @@ export function RelationshipPrefsPanel({
           value={local.contactFreq}
           onChange={(v) => update('contactFreq', v)}
           color={characterColor}
+          testIdPrefix="prefs-contact"
         />
       </Section>
 
@@ -45,6 +47,7 @@ export function RelationshipPrefsPanel({
           value={local.teachingMode}
           onChange={(v) => update('teachingMode', v)}
           color={characterColor}
+          testIdPrefix="prefs-teaching"
         />
       </Section>
 
@@ -56,6 +59,7 @@ export function RelationshipPrefsPanel({
           value={local.emotionalDepth}
           onChange={(v) => update('emotionalDepth', v)}
           color={characterColor}
+          testIdPrefix="prefs-depth"
         />
       </Section>
 
@@ -65,12 +69,21 @@ export function RelationshipPrefsPanel({
           animate={{ opacity: 1, y: 0 }}
           className="w-full py-2.5 rounded-lg text-sm font-medium text-white"
           style={{ backgroundColor: characterColor }}
-          onClick={() => {
-            onSave(local);
-            setDirty(false);
+          disabled={saving}
+          onClick={async () => {
+            if (saving) return;
+            setSaving(true);
+            try {
+              const saved = await onSave(local);
+              if (saved) {
+                setDirty(false);
+              }
+            } finally {
+              setSaving(false);
+            }
           }}
         >
-          Save Preferences
+          {saving ? 'Saving...' : 'Save Preferences'}
         </motion.button>
       )}
     </div>
@@ -103,19 +116,24 @@ function RadioGroup({
   value,
   onChange,
   color,
+  testIdPrefix,
 }: {
   options: string[];
   labels: string[];
   value: string;
   onChange: (v: string) => void;
   color: string;
+  testIdPrefix: string;
 }) {
   return (
     <div className="flex flex-wrap gap-2">
       {options.map((opt, i) => (
         <button
           key={opt}
+          type="button"
           onClick={() => onChange(opt)}
+          aria-pressed={value === opt}
+          data-testid={`${testIdPrefix}-${opt}`}
           className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
           style={
             value === opt

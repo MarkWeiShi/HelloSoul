@@ -1,4 +1,4 @@
-export const POSITIVE_EMOTION_KEYS = [
+﻿export const POSITIVE_EMOTION_KEYS = [
   'joy',
   'contentment',
   'amusement',
@@ -118,13 +118,13 @@ const EMOTION_META: Record<EmotionKey, EmotionMeta> = {
   anger: { labelZh: '愤怒', emoji: '😠', cluster: 'negative' },
   rage: { labelZh: '暴怒', emoji: '🤬', cluster: 'negative' },
   disgust: { labelZh: '厌恶', emoji: '🤢', cluster: 'negative' },
-  contempt: { labelZh: '蔑视', emoji: '🫤', cluster: 'negative' },
-  jealousy: { labelZh: '嫉妒', emoji: '😑', cluster: 'negative' },
-  envy: { labelZh: '羡慕', emoji: '😶', cluster: 'negative' },
-  distrust: { labelZh: '不信任', emoji: '🙅', cluster: 'negative' },
+  contempt: { labelZh: '蔑视', emoji: '🫡', cluster: 'negative' },
+  jealousy: { labelZh: '嫉妒', emoji: '😕', cluster: 'negative' },
+  envy: { labelZh: '羡慕', emoji: '😁', cluster: 'negative' },
+  distrust: { labelZh: '不信任', emoji: '🙯', cluster: 'negative' },
   suspicion: { labelZh: '怀疑', emoji: '🤨', cluster: 'negative' },
-  confusion: { labelZh: '困惑', emoji: '😵', cluster: 'negative' },
-  stress: { labelZh: '压力', emoji: '😖', cluster: 'negative' },
+  confusion: { labelZh: '困惑', emoji: '😐', cluster: 'negative' },
+  stress: { labelZh: '压力', emoji: '😚', cluster: 'negative' },
   exhaustion: { labelZh: '疲惫', emoji: '🥱', cluster: 'negative' },
 };
 
@@ -160,11 +160,13 @@ export function stabilizeEmotionKey(params: {
   candidateKey?: string | null;
   cooldownMs?: number;
   nowMs?: number;
+  defaultKey?: string | null;
 }): EmotionKey {
   const previous = normalizeEmotionKey(params.previousKey);
   const candidate = normalizeEmotionKey(params.candidateKey);
+  const defaultKey = normalizeEmotionKey(params.defaultKey) || DEFAULT_EMOTION_KEY;
 
-  if (!candidate) return previous || DEFAULT_EMOTION_KEY;
+  if (!candidate) return previous || defaultKey;
   if (!previous || previous === candidate) return candidate;
 
   if (EMOTION_META[previous].cluster === EMOTION_META[candidate].cluster) {
@@ -226,3 +228,4 @@ export function inferEmotionKeyFromText(
       return DEFAULT_EMOTION_KEY;
   }
 }
+

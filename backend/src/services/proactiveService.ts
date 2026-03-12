@@ -148,9 +148,14 @@ async function scheduleMissYouMessages() {
       intimacyScore: { gte: 10 },
       proactiveFrequency: { not: 'off' },
       // Don't send if we already sent one recently
-      lastProactiveAt: {
-        lt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-      },
+      OR: [
+        { lastProactiveAt: null },
+        {
+          lastProactiveAt: {
+            lt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+          },
+        },
+      ],
     },
     select: { userId: true, characterId: true },
   });

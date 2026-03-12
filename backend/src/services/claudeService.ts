@@ -1,15 +1,17 @@
-import Anthropic from '@anthropic-ai/sdk';
+﻿import Anthropic from '@anthropic-ai/sdk';
+import { PRIVATE_CHAT_SCENE_IDS } from '../config/privateChatMvp';
 import {
   DEFAULT_EMOTION_KEY,
   EMOTION_KEYS,
-  type EmotionKey,
   type EmotionPayload,
   type GazeDirection,
   normalizeEmotionKey,
   stabilizeEmotionKey,
 } from './emotionEngine';
+import { isAutomatedProfile } from '../config/runtime';
+import { buildStubCompletion, buildStubStreamReply, chunkStubResponse } from '../testing/e2eAi';
 
-// Lazy singleton — constructed on first use so dotenv has time to load
+// Lazy singleton - constructed on first use so dotenv has time to load
 let _anthropic: Anthropic | null = null;
 function getClient(): Anthropic {
   if (!_anthropic) {
@@ -43,6 +45,14 @@ export interface StreamChatParams {
  * Returns an async iterator of text deltas.
  */
 export async function* streamChat(params: StreamChatParams) {
+  if (isAutomatedProfile()) {
+    const stubReply = buildStubStreamReply({ messages: params.messages });
+    for (const chunk of chunkStubResponse(stubReply)) {
+      yield chunk;
+    }
+    return;
+  }
+
   const stream = getClient().messages.stream({
     model: 'claude-sonnet-4-5-20250929',
     max_tokens: params.maxTokens ?? 500,
@@ -68,6 +78,10 @@ export async function completeHaiku(
   prompt: string,
   maxTokens = 300
 ): Promise<string> {
+  if (isAutomatedProfile()) {
+    return buildStubCompletion(prompt);
+  }
+
   const result = await getClient().messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: maxTokens,
@@ -87,6 +101,10 @@ export async function completeSonnet(
   systemPrompt?: string,
   maxTokens = 500
 ): Promise<string> {
+  if (isAutomatedProfile()) {
+    return buildStubCompletion([systemPrompt || '', prompt].filter(Boolean).join('\n\n'));
+  }
+
   const result = await getClient().messages.create({
     model: 'claude-sonnet-4-5-20250929',
     max_tokens: maxTokens,
@@ -110,7 +128,7 @@ const EMOTION_INSTRUCTION = `
 <scene_suggest>scene_id or none</scene_suggest>
 
 Valid emotion_key values: ${EMOTION_KEYS.join(', ')}
-Scene IDs: cafe_counter, classroom, cycling_street, rainy_convenience, apartment_day, shrine_festival, cherry_blossom, apartment_night, old_bookstore, canal_walk, none
+Scene IDs: ${PRIVATE_CHAT_SCENE_IDS.join(', ')}, none
 Pick emotion that matches your TRUE feeling about what user said. Gaze: "user" when engaged, "away" when shy/thinking, "down" when vulnerable.`;
 
 /**
@@ -118,19 +136,23 @@ Pick emotion that matches your TRUE feeling about what user said. Gaze: "user" w
  */
 export function parseEmotionFromResponse(
   rawText: string,
-  fallback?: { previousKey?: string | null; previousAt?: Date | number | null }
+  fallback?: {
+    previousKey?: string | null;
+    previousAt?: Date | number | null;
+    defaultKey?: string | null;
+  }
 ): ChatResponseWithEmotion {
   const emotionMatch = rawText.match(/<emotion_key>(.*?)<\/emotion_key>/);
   const endEmotionMatch = rawText.match(/<emotion_key_end>(.*?)<\/emotion_key_end>/);
   const gazeMatch = rawText.match(/<gaze>(.*?)<\/gaze>/);
   const sceneMatch = rawText.match(/<scene_suggest>(.*?)<\/scene_suggest>/);
 
-  // Clean reply text (remove XML tags)
   const cleanReply = rawText
     .replace(/<emotion_key>.*?<\/emotion_key>/g, '')
     .replace(/<emotion_key_end>.*?<\/emotion_key_end>/g, '')
     .replace(/<emotion>.*?<\/emotion>/g, '')
     .replace(/<emotion_end>.*?<\/emotion_end>/g, '')
+    .replace(/<memory_recall>.*?<\/memory_recall>/g, '')
     .replace(/<gaze>.*?<\/gaze>/g, '')
     .replace(/<scene_suggest>.*?<\/scene_suggest>/g, '')
     .trim();
@@ -139,6 +161,7 @@ export function parseEmotionFromResponse(
     previousKey: fallback?.previousKey,
     previousAt: fallback?.previousAt,
     candidateKey: emotionMatch?.[1] || undefined,
+    defaultKey: fallback?.defaultKey,
   });
   const endKey = normalizeEmotionKey(endEmotionMatch?.[1] || undefined);
   const gazeValue = (gazeMatch?.[1] || 'user').trim().toLowerCase();

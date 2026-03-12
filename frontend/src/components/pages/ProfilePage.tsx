@@ -3,19 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import { Settings, Phone, BookOpen, Eye, TrendingUp } from 'lucide-react';
 import { usePersonaStore } from '../../store/personaStore';
 import { useIntimacy } from '../../hooks/useIntimacy';
+import { apiUpdateRelationshipPrefs } from '../../api/relationship';
 import { IntimacyProgress } from '../persona/IntimacyProgress';
 import { RelationshipPrefsPanel } from '../persona/RelationshipPrefs';
 import { PersonaBible } from '../persona/PersonaBible';
 import type { RelationshipPrefs } from '../../types/persona';
 import { PageLayout } from '../layout/PageLayout';
+import { submitRelationshipPrefsChange } from './profilePreferences';
 
 export function ProfilePage() {
   const navigate = useNavigate();
   const { selectedCharacterId, getCharacter } = usePersonaStore();
   const character = selectedCharacterId ? getCharacter(selectedCharacterId) : null;
-  const { relationship, currentLevel } = useIntimacy(selectedCharacterId);
+  const { relationship, currentLevel, refresh } = useIntimacy(selectedCharacterId);
   const [showPrefs, setShowPrefs] = useState(false);
   const [bioExpanded, setBioExpanded] = useState(false);
+  const [savingPrefs, setSavingPrefs] = useState(false);
 
   if (!character) {
     return (
@@ -108,9 +111,25 @@ export function ProfilePage() {
               }
             }
             characterColor={color}
-            onSave={(prefs: RelationshipPrefs) => {
-              // TODO: API call to save prefs
-              setShowPrefs(false);
+            onSave={async (prefs: RelationshipPrefs) => {
+              setSavingPrefs(true);
+              try {
+                const saved = await submitRelationshipPrefsChange({
+                  selectedCharacterId,
+                  savingPrefs,
+                  prefs,
+                  updatePrefs: apiUpdateRelationshipPrefs,
+                  refresh,
+                });
+                if (saved) {
+                  setShowPrefs(false);
+                } else {
+                  console.error('Failed to save relationship preferences.');
+                }
+                return saved;
+              } finally {
+                setSavingPrefs(false);
+              }
             }}
           />
         </div>

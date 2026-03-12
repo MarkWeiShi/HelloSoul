@@ -185,6 +185,11 @@ export interface Message {
     originalContext: string;
   };
 
+  relationshipProgress?: {
+    newLevel: number;
+    label: string;
+  };
+
   // Language tip fields
   culturalTip?: {
     native: string;
@@ -281,4 +286,46 @@ export interface BirthdayContent {
   openingDialogue: { text: string; emotionKey: EmotionKey };
   callGreeting: { text: string; emotionKey: EmotionKey };
   nightClosing: { text: string; emotionKey: EmotionKey };
+}
+
+export interface ChatDonePayload {
+  messageId: string;
+  reply: string;
+  intimacy: {
+    newScore: number;
+    newLevel: number;
+    levelChanged: boolean;
+  };
+  emotion?: Emotion;
+  sceneId?: string;
+  innerVoice: {
+    text: string;
+    language: string;
+    translation: string;
+    audioUrl?: string;
+  } | null;
+  memoryRecallHit: { content: string; date: string } | null;
+  promptVersion: string;
+  warnings: string[];
+  traceId: string;
+}
+
+export interface ChatHistoryMessage {
+  id: string;
+  type: MessageType;
+  role: 'ai' | 'user';
+  content: string;
+  timestamp: string;
+  characterId: string;
+  emotion?: Emotion;
+  sceneId?: string;
+  innerVoiceText?: string;
+  innerVoiceLanguage?: string;
+  innerVoiceTranslation?: string;
+  innerVoiceAudioUrl?: string;
+  hasInnerVoice?: boolean;
+  memoryRef?: {
+    date: string;
+    originalContext: string;
+  };
 }

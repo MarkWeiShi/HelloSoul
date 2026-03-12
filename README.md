@@ -119,6 +119,39 @@ npm run dev
 - Backend: `http://localhost:3001`
 - Health: `http://localhost:3001/api/health`
 
+### 4.6 本地自动化回归（Playwright + Stubbed Backend）
+
+用于替代大部分人工点测的本地回归命令：
+
+```bash
+npm run test
+npm run qa:smoke
+npm run qa:full
+npm run qa:triage
+```
+
+说明：
+- `npm run test`
+  - 运行后端 `node:test` 集成/单测，以及前端 `Vitest` 单测。
+- `npm run qa:smoke`
+  - 启动本地 `TEST_PROFILE=e2e` 环境，运行 Playwright 核心回归。
+- `npm run qa:full`
+  - 在同一套 stubbed 环境下运行完整浏览器回归。
+- `npm run qa:triage`
+  - 读取最近一次 Playwright 失败结果，整理 AI 可读的故障包。
+
+本地浏览器回归使用：
+- 隔离 SQLite 数据库：`prisma/e2e.db`
+- 固定 seed 用户：`qa@hellosoul.local / 123456`
+- Stubbed LLM / Voice provider，不调用真实 Anthropic 或 ElevenLabs
+- 失败产物目录：`.cache/qa/`
+
+第一次使用 Playwright 时先安装浏览器：
+
+```bash
+npm run qa:install-browsers
+```
+
 ## 5. 开发常用命令
 
 根目录：
@@ -126,6 +159,10 @@ npm run dev
 ```bash
 npm run dev
 npm run build
+npm run test
+npm run qa:smoke
+npm run qa:full
+npm run qa:triage
 ```
 
 后端（在 `backend`）：

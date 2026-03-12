@@ -2,6 +2,18 @@ import { useUserStore } from '../store/userStore';
 
 const BASE_URL = '/api';
 
+export class ApiError extends Error {
+  status: number;
+  body: any;
+
+  constructor(status: number, body: any) {
+    super(body?.error || `HTTP ${status}`);
+    this.name = 'ApiError';
+    this.status = status;
+    this.body = body;
+  }
+}
+
 function getHeaders(): HeadersInit {
   const token = useUserStore.getState().token;
   return {
@@ -21,7 +33,7 @@ export async function apiFetch<T = any>(
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(body.error || `HTTP ${res.status}`);
+    throw new ApiError(res.status, body);
   }
 
   return res.json();

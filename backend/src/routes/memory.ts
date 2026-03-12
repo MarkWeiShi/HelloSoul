@@ -6,6 +6,7 @@ import {
   recordMilestone,
 } from '../services/memoryService';
 import { getOrCreateRelationship } from '../services/intimacyService';
+import { mapStoredJournalEntryToClientEntry } from '../services/chatExperienceService';
 
 const router = Router();
 
@@ -27,7 +28,9 @@ router.get('/timeline/:characterId', authenticate, async (req: AuthRequest, res)
   try {
     const { characterId } = req.params;
     const entries = await getJournalTimeline(req.userId!, characterId);
-    res.json({ entries });
+    res.json({
+      entries: entries.map((entry) => mapStoredJournalEntryToClientEntry(entry)),
+    });
   } catch (err) {
     console.error('[memory] Timeline error:', err);
     res.status(500).json({ error: 'Failed to get timeline' });

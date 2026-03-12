@@ -3,8 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, PhoneOff, Mic, MicOff, Volume2 } from 'lucide-react';
 import { HeartbeatRitual } from './HeartbeatRitual';
 import { BackgroundAmbience } from './BackgroundAmbience';
+import { ApiError } from '../../api/base';
+import { apiStartVoiceCall } from '../../api/voice';
 
-type CallState = 'pre_ritual' | 'active' | 'ending';
+type CallState = 'loading_access' | 'locked' | 'pre_ritual' | 'active' | 'ending';
 
 interface VoiceCallScreenProps {
   characterId: string;
@@ -21,9 +23,41 @@ export function VoiceCallScreen({
   avatarUrl,
   onEnd,
 }: VoiceCallScreenProps) {
-  const [state, setState] = useState<CallState>('pre_ritual');
+  const [state, setState] = useState<CallState>('loading_access');
   const [muted, setMuted] = useState(false);
   const [duration, setDuration] = useState(0);
+  const [gateMessage, setGateMessage] = useState<string | null>(null);
+  const [currentScore, setCurrentScore] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    setState('loading_access');
+    setGateMessage(null);
+    setCurrentScore(null);
+
+    apiStartVoiceCall(characterId)
+      .then(() => {
+        if (!cancelled) {
+          setState('pre_ritual');
+        }
+      })
+      .catch((error) => {
+        if (cancelled) return;
+
+        if (error instanceof ApiError) {
+          setGateMessage(error.message);
+          setCurrentScore(typeof error.body?.currentScore === 'number' ? error.body.currentScore : null);
+        } else {
+          setGateMessage(error instanceof Error ? error.message : 'Failed to start voice call.');
+        }
+        setState('locked');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [characterId]);
 
   // Timer for active call
   useEffect(() => {
@@ -51,9 +85,55 @@ export function VoiceCallScreen({
     <div className="fixed inset-0 z-50 bg-[#0F0B1E] flex flex-col">
       <AnimatePresence mode="wait">
         {/* Pre-call Heartbeat Ritual */}
+        {state === 'loading_access' && (
+          <motion.div
+            key="loading"
+            data-testid="voice-call-loading"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex-1 flex flex-col items-center justify-center gap-4 px-6 text-center"
+          >
+            <Phone size={40} style={{ color: characterColor }} />
+            <p className="text-sm text-gray-400">Checking whether the call is available...</p>
+          </motion.div>
+        )}
+
+        {state === 'locked' && (
+          <motion.div
+            key="locked"
+            data-testid="voice-call-locked"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex-1 flex flex-col items-center justify-center gap-4 px-6 text-center"
+          >
+            <PhoneOff size={40} className="text-red-400" />
+            <div className="space-y-2">
+              <h2 className="text-xl font-medium text-white">Voice call locked</h2>
+              <p className="text-sm text-gray-400">
+                {gateMessage || 'Voice calls are not available right now.'}
+              </p>
+              {currentScore !== null && (
+                <p className="text-xs text-gray-500">
+                  Current intimacy score: {currentScore}
+                </p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={onEnd}
+              className="px-4 py-2 rounded-full bg-white/10 text-sm text-white"
+            >
+              Back to chat
+            </button>
+          </motion.div>
+        )}
+
         {state === 'pre_ritual' && (
           <motion.div
             key="ritual"
+            data-testid="voice-call-ritual"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -71,6 +151,7 @@ export function VoiceCallScreen({
         {state === 'active' && (
           <motion.div
             key="active"
+            data-testid="voice-call-active"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
