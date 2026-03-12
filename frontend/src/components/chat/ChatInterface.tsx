@@ -156,6 +156,7 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
 
   return (
     <div
+      data-testid="chat-screen"
       className="flex flex-col h-full bg-surface relative"
       style={{ paddingBottom: 'var(--akari-nav-offset)' }}
     >
@@ -199,9 +200,15 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
               <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 rounded-full border-2 border-surface z-20" />
             </div>
             <div>
-              <h2 className="text-sm font-medium">{chatMvp.displayName}</h2>
+              <h2 data-testid="chat-character-name" className="text-sm font-medium">
+                {chatMvp.displayName}
+              </h2>
               {currentLevel && (
-                <p className="text-[10px]" style={{ color: character.color }}>
+                <p
+                  data-testid="chat-level-indicator"
+                  className="text-[10px]"
+                  style={{ color: character.color }}
+                >
                   {currentLevel.name} Lv.{currentLevel.level}
                 </p>
               )}
@@ -211,6 +218,7 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
           <div className="flex items-center gap-3">
             <button
               onClick={handleStartCall}
+              data-testid="chat-call-button"
               className="p-2 rounded-full hover:bg-white/5 transition-colors"
             >
               <Phone size={18} className="text-gray-400" />
@@ -393,6 +401,7 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
+            data-testid="chat-input"
             placeholder={
               historyLoading
                 ? `Loading ${chatMvp.displayName}'s chat...`
@@ -410,6 +419,7 @@ export function ChatInterface({ characterId, onStartCall }: ChatInterfaceProps) 
           <button
             onClick={handleSend}
             disabled={!input.trim() || isStreaming || historyLoading}
+            data-testid="chat-send-button"
             className="p-2 rounded-full transition-colors disabled:opacity-30"
             style={{ color: character.color }}
           >

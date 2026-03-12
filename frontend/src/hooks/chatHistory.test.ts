@@ -1,5 +1,4 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import { expect, it } from 'vitest';
 import type { Message } from '../types/chat';
 import {
   mergeChatHistoryMessages,
@@ -19,16 +18,16 @@ function createMessage(overrides: Partial<Message> & Pick<Message, 'id'>): Messa
   };
 }
 
-test('shouldLoadChatHistory skips reloading when the current character history is already hydrated', () => {
+it('shouldLoadChatHistory skips reloading when the current character history is already hydrated', () => {
   const shouldLoad = shouldLoadChatHistory({
     historyHydrated: true,
     currentMessages: [createMessage({ id: 'ai_1' })],
   });
 
-  assert.equal(shouldLoad, false);
+  expect(shouldLoad).toBe(false);
 });
 
-test('mergeChatHistoryMessages preserves local message state and appends local-only messages', () => {
+it('mergeChatHistoryMessages preserves local message state and appends local-only messages', () => {
   const merged = mergeChatHistoryMessages({
     currentMessages: [
       createMessage({
@@ -58,8 +57,8 @@ test('mergeChatHistoryMessages preserves local message state and appends local-o
     ],
   });
 
-  assert.equal(merged.length, 3);
-  assert.equal(merged[1]?.id, 'ai_1');
-  assert.equal(merged[1]?.innerVoiceRevealed, true);
-  assert.equal(merged[2]?.id, 'local_user_1');
+  expect(merged).toHaveLength(3);
+  expect(merged[1]?.id).toBe('ai_1');
+  expect(merged[1]?.innerVoiceRevealed).toBe(true);
+  expect(merged[2]?.id).toBe('local_user_1');
 });

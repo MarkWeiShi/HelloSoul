@@ -8,6 +8,8 @@ import {
   normalizeEmotionKey,
   stabilizeEmotionKey,
 } from './emotionEngine';
+import { isAutomatedProfile } from '../config/runtime';
+import { buildStubCompletion, buildStubStreamReply, chunkStubResponse } from '../testing/e2eAi';
 
 // Lazy singleton - constructed on first use so dotenv has time to load
 let _anthropic: Anthropic | null = null;
@@ -43,6 +45,14 @@ export interface StreamChatParams {
  * Returns an async iterator of text deltas.
  */
 export async function* streamChat(params: StreamChatParams) {
+  if (isAutomatedProfile()) {
+    const stubReply = buildStubStreamReply({ messages: params.messages });
+    for (const chunk of chunkStubResponse(stubReply)) {
+      yield chunk;
+    }
+    return;
+  }
+
   const stream = getClient().messages.stream({
     model: 'claude-sonnet-4-5-20250929',
     max_tokens: params.maxTokens ?? 500,
@@ -68,6 +78,10 @@ export async function completeHaiku(
   prompt: string,
   maxTokens = 300
 ): Promise<string> {
+  if (isAutomatedProfile()) {
+    return buildStubCompletion(prompt);
+  }
+
   const result = await getClient().messages.create({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: maxTokens,
@@ -87,6 +101,10 @@ export async function completeSonnet(
   systemPrompt?: string,
   maxTokens = 500
 ): Promise<string> {
+  if (isAutomatedProfile()) {
+    return buildStubCompletion([systemPrompt || '', prompt].filter(Boolean).join('\n\n'));
+  }
+
   const result = await getClient().messages.create({
     model: 'claude-sonnet-4-5-20250929',
     max_tokens: maxTokens,

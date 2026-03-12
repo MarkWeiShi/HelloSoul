@@ -9,14 +9,27 @@
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:frontend": "cd frontend && npm run dev",
     "dev:backend": "cd backend && npm run dev",
+    "dev:frontend:e2e": "cd frontend && npm run dev -- --host 127.0.0.1 --port 5173",
+    "dev:backend:e2e": "cd backend && TEST_PROFILE=e2e DATABASE_URL=\"file:../prisma/e2e.db\" PORT=3001 npm run dev",
+    "dev:e2e": "node scripts/dev-e2e.mjs",
     "build": "npm run build:backend && npm run build:frontend",
     "build:frontend": "cd frontend && npm run build",
     "build:backend": "cd backend && npm run build",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "cd backend && npm run db:push:test && npm test",
+    "test:frontend": "cd frontend && npm test",
+    "test:ci": "npm run test && npm run build",
+    "qa:install-browsers": "playwright install chromium",
+    "qa:smoke": "playwright test --grep @smoke",
+    "qa:full": "playwright test",
+    "qa:triage": "node scripts/qa-triage.mjs",
     "sync:akari-videos": "node scripts/sync-akari-emotion-videos.mjs",
     "db:push": "cd backend && npx prisma db push",
+    "db:push:e2e": "node scripts/db-push-e2e.mjs",
     "db:studio": "cd backend && npx prisma studio"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "concurrently": "^9.2.1"
   }
 }

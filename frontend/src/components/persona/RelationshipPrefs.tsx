@@ -35,6 +35,7 @@ export function RelationshipPrefsPanel({
           value={local.contactFreq}
           onChange={(v) => update('contactFreq', v)}
           color={characterColor}
+          testIdPrefix="prefs-contact"
         />
       </Section>
 
@@ -46,6 +47,7 @@ export function RelationshipPrefsPanel({
           value={local.teachingMode}
           onChange={(v) => update('teachingMode', v)}
           color={characterColor}
+          testIdPrefix="prefs-teaching"
         />
       </Section>
 
@@ -57,6 +59,7 @@ export function RelationshipPrefsPanel({
           value={local.emotionalDepth}
           onChange={(v) => update('emotionalDepth', v)}
           color={characterColor}
+          testIdPrefix="prefs-depth"
         />
       </Section>
 
@@ -113,19 +116,24 @@ function RadioGroup({
   value,
   onChange,
   color,
+  testIdPrefix,
 }: {
   options: string[];
   labels: string[];
   value: string;
   onChange: (v: string) => void;
   color: string;
+  testIdPrefix: string;
 }) {
   return (
     <div className="flex flex-wrap gap-2">
       {options.map((opt, i) => (
         <button
           key={opt}
+          type="button"
           onClick={() => onChange(opt)}
+          aria-pressed={value === opt}
+          data-testid={`${testIdPrefix}-${opt}`}
           className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
           style={
             value === opt

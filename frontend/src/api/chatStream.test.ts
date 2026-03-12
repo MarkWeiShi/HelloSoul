@@ -1,19 +1,20 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import { describe, expect, it } from 'vitest';
 import { extractSseDataFrames } from './chatStream';
 
-test('extractSseDataFrames buffers incomplete SSE frames across chunks', () => {
-  const first = extractSseDataFrames('data: {"type":"delta","content":"Hel');
-  assert.deepEqual(first.events, []);
-  assert.equal(first.rest, 'data: {"type":"delta","content":"Hel');
+describe('extractSseDataFrames', () => {
+  it('buffers incomplete SSE frames across chunks', () => {
+    const first = extractSseDataFrames('data: {"type":"delta","content":"Hel');
+    expect(first.events).toEqual([]);
+    expect(first.rest).toBe('data: {"type":"delta","content":"Hel');
 
-  const second = extractSseDataFrames(
-    `${first.rest}lo"}\n\ndata: {"type":"done","reply":"Hi"}\n\n`
-  );
+    const second = extractSseDataFrames(
+      `${first.rest}lo"}\n\ndata: {"type":"done","reply":"Hi"}\n\n`
+    );
 
-  assert.deepEqual(second.events, [
-    '{"type":"delta","content":"Hello"}',
-    '{"type":"done","reply":"Hi"}',
-  ]);
-  assert.equal(second.rest, '');
+    expect(second.events).toEqual([
+      '{"type":"delta","content":"Hello"}',
+      '{"type":"done","reply":"Hi"}',
+    ]);
+    expect(second.rest).toBe('');
+  });
 });

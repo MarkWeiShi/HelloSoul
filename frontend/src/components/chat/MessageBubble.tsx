@@ -35,6 +35,7 @@ export function MessageBubble({
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
+      data-testid={`message-${message.role}`}
       className={`flex ${isAi ? 'justify-start' : 'justify-end'} px-5`}
       style={{ animation: 'fadeInUp 300ms ease-out both' }}
     >

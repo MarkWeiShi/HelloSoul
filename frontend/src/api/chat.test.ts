@@ -1,5 +1,4 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import { expect, it } from 'vitest';
 
 class MemoryStorage {
   private storage = new Map<string, string>();
@@ -21,7 +20,7 @@ class MemoryStorage {
   }
 }
 
-test('streamChatMessage flushes decoder tail before parsing the final SSE frame', async () => {
+it('streamChatMessage flushes decoder tail before parsing the final SSE frame', async () => {
   const originalLocalStorage = globalThis.localStorage;
   const originalFetch = globalThis.fetch;
   const OriginalTextDecoder = globalThis.TextDecoder;
@@ -69,9 +68,9 @@ test('streamChatMessage flushes decoder tail before parsing the final SSE frame'
       deltas.push(delta);
     });
 
-    assert.deepEqual(deltas, ['Hello']);
-    assert.equal(metadata.reply, 'Hello');
-    assert.equal(metadata.messageId, 'msg_1');
+    expect(deltas).toEqual(['Hello']);
+    expect(metadata.reply).toBe('Hello');
+    expect(metadata.messageId).toBe('msg_1');
   } finally {
     globalThis.fetch = originalFetch;
     Object.defineProperty(globalThis, 'TextDecoder', {

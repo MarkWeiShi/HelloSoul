@@ -1,5 +1,4 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import { expect, it } from 'vitest';
 import type { RelationshipPrefs } from '../../types/persona';
 import { submitRelationshipPrefsChange } from './profilePreferences';
 
@@ -9,7 +8,7 @@ const prefs: RelationshipPrefs = {
   emotionalDepth: 'deep',
 };
 
-test('submitRelationshipPrefsChange returns true after save and refresh succeed', async () => {
+it('submitRelationshipPrefsChange returns true after save and refresh succeed', async () => {
   let refreshed = false;
   const calls: Array<{ characterId: string; prefs: RelationshipPrefs }> = [];
 
@@ -25,12 +24,12 @@ test('submitRelationshipPrefsChange returns true after save and refresh succeed'
     },
   });
 
-  assert.equal(saved, true);
-  assert.equal(refreshed, true);
-  assert.deepEqual(calls, [{ characterId: 'akari', prefs }]);
+  expect(saved).toBe(true);
+  expect(refreshed).toBe(true);
+  expect(calls).toEqual([{ characterId: 'akari', prefs }]);
 });
 
-test('submitRelationshipPrefsChange returns false when the save request fails', async () => {
+it('submitRelationshipPrefsChange returns false when the save request fails', async () => {
   const saved = await submitRelationshipPrefsChange({
     selectedCharacterId: 'akari',
     savingPrefs: false,
@@ -43,5 +42,5 @@ test('submitRelationshipPrefsChange returns false when the save request fails', 
     },
   });
 
-  assert.equal(saved, false);
+  expect(saved).toBe(false);
 });

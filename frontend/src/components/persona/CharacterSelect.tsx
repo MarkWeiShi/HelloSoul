@@ -24,15 +24,17 @@ export function CharacterSelect({ onSelect }: CharacterSelectProps) {
           {CHARACTERS.map((character, index) => {
             const chatMvp = getChatMvpCharacterUi(character.id);
 
-            return (
-              <motion.div
+          return (
+              <motion.button
                 key={character.id}
+                type="button"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.15 }}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => onSelect(character.id)}
+                data-testid={`character-card-${character.id}`}
                 className="snap-center flex-shrink-0 w-[clamp(220px,78vw,280px)] h-[clamp(360px,68vh,430px)] rounded-2xl overflow-hidden cursor-pointer relative"
                 style={{
                   background: `linear-gradient(180deg, ${character.color}15 0%, ${character.color}05 100%)`,
@@ -61,7 +63,7 @@ export function CharacterSelect({ onSelect }: CharacterSelectProps) {
                         {character.flag} {character.city}, {character.country}
                       </p>
                     </div>
-                    <button
+                    <div
                       className="w-8 h-8 rounded-full flex items-center justify-center"
                       style={{
                         backgroundColor: `${character.color}22`,
@@ -69,7 +71,7 @@ export function CharacterSelect({ onSelect }: CharacterSelectProps) {
                       }}
                     >
                       <Volume2 size={14} style={{ color: character.color }} />
-                    </button>
+                    </div>
                   </div>
 
                   <p className="text-xs text-gray-500 italic">{chatMvp.tagline}</p>
@@ -110,7 +112,7 @@ export function CharacterSelect({ onSelect }: CharacterSelectProps) {
                     ease: 'easeInOut',
                   }}
                 />
-              </motion.div>
+              </motion.button>
             );
           })}
         </div>

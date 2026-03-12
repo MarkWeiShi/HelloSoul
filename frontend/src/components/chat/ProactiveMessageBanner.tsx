@@ -40,17 +40,18 @@ export function ProactiveMessageBanner({
     <AnimatePresence>
       {show && (
         <motion.div
+          data-testid="proactive-banner"
           initial={{ y: -80, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: -80, opacity: 0 }}
           transition={{ type: 'spring', damping: 20, stiffness: 200 }}
-          className="absolute top-0 left-0 right-0 z-50 px-4 pb-3"
+          className="pointer-events-none absolute top-0 left-0 right-0 z-50 px-4 pb-3"
           style={{
             background: `linear-gradient(to bottom, ${characterColor}20, transparent)`,
             paddingTop: 'calc(var(--akari-safe-top) + var(--akari-space-sm))',
           }}
         >
-          <div className="glass-card rounded-xl p-4 flex items-start gap-3">
+          <div className="pointer-events-none glass-card rounded-xl p-4 flex items-start gap-3">
             {/* Character icon */}
             <div
               className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-lg"
@@ -75,7 +76,9 @@ export function ProactiveMessageBanner({
               <div className="flex gap-2 mt-2">
                 <button
                   onClick={onReply}
-                  className="flex items-center gap-1 text-xs px-3 py-1 rounded-full transition-colors"
+                  type="button"
+                  data-testid="proactive-reply-button"
+                  className="pointer-events-auto flex items-center gap-1 text-xs px-3 py-1 rounded-full transition-colors"
                   style={{
                     backgroundColor: `${characterColor}20`,
                     color: characterColor,
@@ -90,7 +93,9 @@ export function ProactiveMessageBanner({
             {/* Dismiss */}
             <button
               onClick={onDismiss}
-              className="flex-shrink-0 p-1 text-gray-500 hover:text-gray-300 transition-colors"
+              type="button"
+              data-testid="proactive-dismiss-button"
+              className="pointer-events-auto flex-shrink-0 p-1 text-gray-500 hover:text-gray-300 transition-colors"
             >
               <X size={16} />
             </button>
